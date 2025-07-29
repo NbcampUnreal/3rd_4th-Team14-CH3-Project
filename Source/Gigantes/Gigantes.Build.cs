@@ -11,7 +11,7 @@ public class Gigantes : ModuleRules
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "AIModule", "NavigationSystem",
 			"GameplayTasks", "GameplayTags", "UMG" });
 
-		PrivateDependencyModuleNames.AddRange(new string[] {  });
+		PrivateDependencyModuleNames.AddRange(new string[] { "AnimGraph" });
 		
 		PublicIncludePaths.AddRange(new string[]
 		{
