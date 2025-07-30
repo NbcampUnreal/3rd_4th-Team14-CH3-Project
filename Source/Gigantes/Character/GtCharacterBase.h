@@ -61,9 +61,10 @@ public:
 	
 protected:
 	virtual void BeginPlay() override;
-
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	
 	UFUNCTION()
-	virtual void OnAttributePrimaryChanged(FGameplayTag AttributeTag, float OldValue, float NewValue);
+	virtual void OnAttributePrimaryChanged(const FGameplayTag& AttributePrimaryTag, float OldValue, float NewValue);
 
 	void HandleHealthChanged(float OldValue, float NewValue);
 

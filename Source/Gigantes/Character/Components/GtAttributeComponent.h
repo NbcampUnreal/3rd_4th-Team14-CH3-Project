@@ -6,7 +6,7 @@
 #include "GtAttributeComponent.generated.h"
 
 // Attribute 변경 델리게이트 : 태그, 이전값, 변경 후 값
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnAttributePrimaryChanged, FGameplayTag, AttributeTag, float, OldValue, float, NewValue);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnAttributePrimaryChanged, const FGameplayTag&, AttributeTag, float, OldValue, float, NewValue);
 
 USTRUCT(BlueprintType)
 struct FAttributePrimaryData
@@ -36,6 +36,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="Attributes|Primary")
 	float GetAttributePrimary(const FGameplayTag& AttributePrimaryTag) const;
+
+	bool GetAttributePrimaryData(const FGameplayTag& AttributePrimaryTag, FAttributePrimaryData& OutAttributePrimaryData) const;
 	
 protected:
 	void BroadcastAttributePrimaryChange(const FGameplayTag& AttributePrimaryTag, const float OldValue, const float NewValue) const;
@@ -46,5 +48,5 @@ public:
 
 protected:
 	UPROPERTY(EditAnywhere, Category = "Attributes|Primary")
-	TMap<FGameplayTag, FAttributePrimaryData> Attributes;
+	TMap<FGameplayTag, FAttributePrimaryData> AttributesPrimary;
 };

@@ -7,7 +7,7 @@ UGtAttributeComponent::UGtAttributeComponent()
 
 void UGtAttributeComponent::SetAttributePrimary(const FGameplayTag& AttributePrimaryTag, const float NewValue)
 {
-	if (FAttributePrimaryData* AttributeData = Attributes.Find(AttributePrimaryTag))
+	if (FAttributePrimaryData* AttributeData = AttributesPrimary.Find(AttributePrimaryTag))
 	{
 		const float OldValue = AttributeData->CurrentValue;
 
@@ -34,11 +34,22 @@ void UGtAttributeComponent::SetAttributePrimary(const FGameplayTag& AttributePri
 
 float UGtAttributeComponent::GetAttributePrimary(const FGameplayTag& AttributePrimaryTag) const
 {
-	if (const FAttributePrimaryData* Data = Attributes.Find(AttributePrimaryTag))
+	if (const FAttributePrimaryData* Data = AttributesPrimary.Find(AttributePrimaryTag))
 	{
 		return Data->CurrentValue;
 	}
 	return 0.f;
+}
+
+bool UGtAttributeComponent::GetAttributePrimaryData(const FGameplayTag& AttributePrimaryTag,
+	FAttributePrimaryData& OutAttributePrimaryData) const
+{
+	if (const FAttributePrimaryData* AttributePrimaryData = AttributesPrimary.Find(AttributePrimaryTag))
+	{
+		OutAttributePrimaryData = *AttributePrimaryData;
+		return true;
+	}
+	return false;
 }
 
 

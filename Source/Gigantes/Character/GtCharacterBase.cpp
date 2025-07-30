@@ -18,6 +18,17 @@ void AGtCharacterBase::BeginPlay()
 	}
 }
 
+void AGtCharacterBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	AttributeChangedHandlers.Empty();
+	if (AttributeComponent)
+	{
+		AttributeComponent->OnAttributePrimaryChanged.RemoveDynamic(this, &ThisClass::OnAttributePrimaryChanged);
+	}
+	
+	Super::EndPlay(EndPlayReason);
+}
+
 float AGtCharacterBase::GetAttributePrimary(const FGameplayTag& AttributePrimaryTag) const
 {
 	if (AttributeComponent)
@@ -93,17 +104,25 @@ void AGtCharacterBase::RemoveStatusTag(const FGameplayTag& StatusTag)
 	OnStatusTagChanged.Broadcast(StatusTag, /*bAdded=*/false);
 }
 
-void AGtCharacterBase::OnAttributePrimaryChanged(FGameplayTag AttributeTag, float OldValue, float NewValue)
+void AGtCharacterBase::OnAttributePrimaryChanged(const FGameplayTag& AttributePrimaryTag, float OldValue, float NewValue)
 {
-	if (const FAttributeChangedHandler* Handler = AttributeChangedHandlers.Find(AttributeTag))
+	if (const FAttributeChangedHandler* AttributeChangedHandler = AttributeChangedHandlers.Find(AttributePrimaryTag))
 	{
-		Handler->ExecuteIfBound(OldValue, NewValue);
+		AttributeChangedHandler->ExecuteIfBound(OldValue, NewValue);
 	}
 }
 
 void AGtCharacterBase::HandleHealthChanged(float OldValue, float NewValue)
 {
-	if (OldValue > 0.f && NewValue <= 0.f)
+	FAttributePrimaryData Data;
+	float Min = 0.f;
+	if (AttributeComponent && AttributeComponent->GetAttributePrimaryData(GtGameplayTags::Attribute_Primary_Health, Data))
+	{
+		Min = Data.MinValue;
+	}
+
+	// Old > Min && New <= Min 일 때만 최초 사망
+	if (OldValue > Min && NewValue <= Min)
 	{
 		Die();
 	}
@@ -122,8 +141,7 @@ void AGtCharacterBase::Die()
 	UE_LOG(LogTemp, Warning, TEXT("Character is dead."));
 }
 
-float AGtCharacterBase::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,
-	AActor* DamageCauser)
+float AGtCharacterBase::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
 	return Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 }
