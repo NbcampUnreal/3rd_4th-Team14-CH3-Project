@@ -1,10 +1,14 @@
 #include "GtCharacterBase.h"
 #include "Components/GtAttributeComponent.h"
+#include "Gigantes/GtGameplayTags.h"
+#include "Gigantes/Gameplay/Damage/Components/GtDamageReceiverComponent.h"
+
 
 AGtCharacterBase::AGtCharacterBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	AttributeComponent = CreateDefaultSubobject<UGtAttributeComponent>(TEXT("AttributeComponent"));
+	DamageReceiverComponent = CreateDefaultSubobject<UGtDamageReceiverComponent>(TEXT("DamageReceiverComponent"));
 }
 
 void AGtCharacterBase::BeginPlay()
@@ -16,7 +20,32 @@ void AGtCharacterBase::BeginPlay()
 	{
 		AttributeComponent->OnAttributePrimaryChanged.AddDynamic(this, &AGtCharacterBase::OnAttributePrimaryChanged);
 	}
+
+	if (DamageReceiverComponent)
+	{
+		DamageReceiverComponent->OnDamageProcessed.AddDynamic(this, &AGtCharacterBase::HandleDamageResult);
+	}
 }
+
+bool AGtCharacterBase::ApplyDamage_Implementation(const FGtDamageInfo& DamageInfo, FGtDamageResult& OutDamageResult)
+{
+	if (HasStatusTagExact(GtGameplayTags::Status_Dead))
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[%s] Already dead. Ignore damage %.2f"), *GetName(), DamageInfo.BaseDamage);
+		OutDamageResult.FinalDamage = 0.f;
+		return false;
+	}
+
+	if (DamageReceiverComponent)
+	{
+		const bool bDamaged = DamageReceiverComponent->Execute_ApplyDamage(DamageReceiverComponent, DamageInfo, OutDamageResult);
+		return bDamaged;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[%s] No DamageReceiverComponent."), *GetName());
+	return false;
+}
+
 
 void AGtCharacterBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
@@ -24,6 +53,10 @@ void AGtCharacterBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	if (AttributeComponent)
 	{
 		AttributeComponent->OnAttributePrimaryChanged.RemoveDynamic(this, &ThisClass::OnAttributePrimaryChanged);
+	}
+	if (DamageReceiverComponent)
+	{
+		DamageReceiverComponent->OnDamageProcessed.RemoveDynamic(this, &ThisClass::HandleDamageResult);
 	}
 	
 	Super::EndPlay(EndPlayReason);
@@ -115,14 +148,14 @@ void AGtCharacterBase::OnAttributePrimaryChanged(const FGameplayTag& AttributePr
 void AGtCharacterBase::HandleHealthChanged(float OldValue, float NewValue)
 {
 	FAttributePrimaryData Data;
-	float Min = 0.f;
+	float MinHealth = 0.f;
 	if (AttributeComponent && AttributeComponent->GetAttributePrimaryData(GtGameplayTags::Attribute_Primary_Health, Data))
 	{
-		Min = Data.MinValue;
+		MinHealth = Data.MinValue;
 	}
 
-	// Old > Min && New <= Min 일 때만 최초 사망
-	if (OldValue > Min && NewValue <= Min)
+	// OldValue > MinHealth && NewValue <= MinHealth 일 때만 최초 사망
+	if (OldValue > MinHealth && NewValue <= MinHealth)
 	{
 		Die();
 	}
@@ -141,9 +174,16 @@ void AGtCharacterBase::Die()
 	UE_LOG(LogTemp, Warning, TEXT("Character is dead."));
 }
 
-float AGtCharacterBase::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+void AGtCharacterBase::HandleDamageResult(const FGtDamageResult& DamageResult)
 {
-	return Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+	UE_LOG(LogTemp, Log, TEXT("[GtCharacterBase] Handling damage result. Final Damage: %.2f"), DamageResult.FinalDamage);
+    
+	// AttributeComponent에 체력 감소 요청
+	if (DamageResult.FinalDamage > 0.f)
+	{
+		// 체력이 0이 될 경우 AttributeComponent의 델리게이트로 인해 HandleHealthChanged에서 Die 호출
+		AddHealth(-DamageResult.FinalDamage);
+	}
+	
 }
-
 
