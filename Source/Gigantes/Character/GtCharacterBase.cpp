@@ -1,6 +1,5 @@
 #include "GtCharacterBase.h"
 #include "Components/GtAttributeComponent.h"
-#include "Gigantes/GtGameplayTags.h"
 
 AGtCharacterBase::AGtCharacterBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -11,7 +10,12 @@ AGtCharacterBase::AGtCharacterBase(const FObjectInitializer& ObjectInitializer)
 void AGtCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
+	AttributeChangedHandlers.Add(GtGameplayTags::Attribute_Primary_Health, FAttributeChangedHandler::CreateUObject(this, &AGtCharacterBase::HandleHealthChanged));
+	if (AttributeComponent)
+	{
+		AttributeComponent->OnAttributePrimaryChanged.AddDynamic(this, &AGtCharacterBase::OnAttributePrimaryChanged);
+	}
 }
 
 float AGtCharacterBase::GetAttributePrimary(const FGameplayTag& AttributePrimaryTag) const
@@ -87,6 +91,35 @@ void AGtCharacterBase::RemoveStatusTag(const FGameplayTag& StatusTag)
 	
 	StatusTags.RemoveTag(StatusTag);
 	OnStatusTagChanged.Broadcast(StatusTag, /*bAdded=*/false);
+}
+
+void AGtCharacterBase::OnAttributePrimaryChanged(FGameplayTag AttributeTag, float OldValue, float NewValue)
+{
+	if (const FAttributeChangedHandler* Handler = AttributeChangedHandlers.Find(AttributeTag))
+	{
+		Handler->ExecuteIfBound(OldValue, NewValue);
+	}
+}
+
+void AGtCharacterBase::HandleHealthChanged(float OldValue, float NewValue)
+{
+	if (OldValue > 0.f && NewValue <= 0.f)
+	{
+		Die();
+	}
+}
+
+void AGtCharacterBase::Die()
+{
+	if (HasStatusTagExact(GtGameplayTags::Status_Dead))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Character is already dead."));
+		return;
+	}
+
+	AddStatusTag(GtGameplayTags::Status_Dead);
+	
+	UE_LOG(LogTemp, Warning, TEXT("Character is dead."));
 }
 
 float AGtCharacterBase::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,

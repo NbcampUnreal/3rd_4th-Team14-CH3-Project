@@ -3,11 +3,13 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "GameFramework/Character.h"
+#include "Gigantes/GtGameplayTags.h"
 #include "GtCharacterBase.generated.h"
 
 class UGtAttributeComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnStatusTagChanged, FGameplayTag, Tag, bool, bAdded);
+DECLARE_DELEGATE_TwoParams(FAttributeChangedHandler, float /*OldValue*/, float /*NewValue*/);
 
 UCLASS(Abstract)
 class GIGANTES_API AGtCharacterBase : public ACharacter
@@ -54,20 +56,29 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Status")
 	void RemoveStatusTag(const FGameplayTag& StatusTag);
 	
-	
 	// TODO : 데미지 관련 로직도 전용 컴포넌트 등으로 위임?
 	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 	
 protected:
 	virtual void BeginPlay() override;
 
+	UFUNCTION()
+	virtual void OnAttributePrimaryChanged(FGameplayTag AttributeTag, float OldValue, float NewValue);
+
+	void HandleHealthChanged(float OldValue, float NewValue);
+
+	virtual void Die();
+	
 public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UGtAttributeComponent> AttributeComponent;
 	
 	UPROPERTY(BlueprintAssignable, Category="Status")
 	FOnStatusTagChanged OnStatusTagChanged;
-	
+
+protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Status")
 	FGameplayTagContainer StatusTags;
+
+	TMap<FGameplayTag, FAttributeChangedHandler> AttributeChangedHandlers;
 };
