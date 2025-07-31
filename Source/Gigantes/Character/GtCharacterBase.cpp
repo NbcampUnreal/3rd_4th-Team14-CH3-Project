@@ -2,6 +2,8 @@
 #include "Components/GtAttributeComponent.h"
 #include "Gigantes/GtGameplayTags.h"
 #include "Gigantes/Gameplay/Damage/Components/GtDamageReceiverComponent.h"
+#include "Perception/AIPerceptionStimuliSourceComponent.h"
+#include "Perception/AISense_Sight.h"
 
 
 AGtCharacterBase::AGtCharacterBase(const FObjectInitializer& ObjectInitializer)
@@ -9,6 +11,10 @@ AGtCharacterBase::AGtCharacterBase(const FObjectInitializer& ObjectInitializer)
 {
 	AttributeComponent = CreateDefaultSubobject<UGtAttributeComponent>(TEXT("AttributeComponent"));
 	DamageReceiverComponent = CreateDefaultSubobject<UGtDamageReceiverComponent>(TEXT("DamageReceiverComponent"));
+	AIPerceptionStimuliSourceComponent = CreateDefaultSubobject<UAIPerceptionStimuliSourceComponent>(TEXT("AIPerceptionStimuliSourceComponent"));
+
+	AIPerceptionStimuliSourceComponent->RegisterForSense(UAISense_Sight::StaticClass());
+	AIPerceptionStimuliSourceComponent->RegisterWithPerceptionSystem();
 }
 
 void AGtCharacterBase::BeginPlay()

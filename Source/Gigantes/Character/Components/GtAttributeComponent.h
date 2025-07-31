@@ -37,6 +37,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Attributes|Primary")
 	float GetAttributePrimary(const FGameplayTag& AttributePrimaryTag) const;
 
+	UFUNCTION(BlueprintCallable, Category="Attributes|Primary")
 	bool GetAttributePrimaryData(const FGameplayTag& AttributePrimaryTag, FAttributePrimaryData& OutAttributePrimaryData) const;
 	
 protected:

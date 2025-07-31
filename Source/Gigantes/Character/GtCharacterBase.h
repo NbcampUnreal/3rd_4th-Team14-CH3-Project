@@ -6,6 +6,7 @@
 #include "Gigantes/Gameplay/Damage/GtDamageable.h"
 #include "GtCharacterBase.generated.h"
 
+class UAIPerceptionStimuliSourceComponent;
 struct FGtDamageResult;
 
 class UGtAttributeComponent;
@@ -80,6 +81,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UGtDamageReceiverComponent> DamageReceiverComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UAIPerceptionStimuliSourceComponent> AIPerceptionStimuliSourceComponent;
 	
 	UPROPERTY(BlueprintAssignable, Category="Status")
 	FOnStatusTagChanged OnStatusTagChanged;
