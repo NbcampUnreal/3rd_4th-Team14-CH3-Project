@@ -1,14 +1,10 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 
 #include "GtTurretBase.h"
-
 #include "AnimNodeEditModes.h"
 
-// Sets default values
 AGtTurretBase::AGtTurretBase()
 {
- 	// Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+
 	PrimaryActorTick.bCanEverTick = false;
 
 	TurretMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("TurretMesh"));
@@ -22,56 +18,46 @@ AGtTurretBase::AGtTurretBase()
 	Collision->OnComponentEndOverlap.AddDynamic(this, &AGtTurretBase::OnOverlapEnd);
 
 	bIsFindEnermy = false;
+	bIsReadyToAttack = false;
 	FindEnemyActor = nullptr;
 }
 
-// Called when the game starts or when spawned
+
 void AGtTurretBase::BeginPlay()
 {
 	Super::BeginPlay();
+}
 
+void AGtTurretBase::EnermySearchTimerReset()
+{
 	GetWorldTimerManager().SetTimer(
 	FindEnermyHandle,
 	this,
-	&AGtTurretBase::EnermySearch,
-	1.0f,
-	true
+	&AGtTurretBase::LookAt,
+	0.02f,
+	false
 	);
 }
 
-void AGtTurretBase::EnermySearch()
+void AGtTurretBase::AttackTimerReset()
 {
-	UE_LOG(LogTemp, Warning, TEXT("Turrent is running"));
-	if (bIsFindEnermy)
-	{
-		if (FindEnemyActor)
-		{
-			LookAt(FindEnemyActor);
-		}
-	}
-}
-
-void AGtTurretBase::LookAt(AActor* Target)
-{
-	if (!Target) return;
-    
-	// 타겟을 향한 방향 벡터 계산
-	FVector Direction = Target->GetActorLocation() - GetActorLocation();
-	Direction.Z = 0; // 수평 회전만 적용 (필요에 따라 조정)
-    
-	// 방향 벡터를 회전값으로 변환
-	FRotator NewRotation = FRotationMatrix::MakeFromX(Direction).Rotator();
-    
-	// 터렛 회전 적용
-	SetActorRotation(NewRotation);
+	GetWorldTimerManager().SetTimer(
+	AttackReadyHandle,
+	this,
+	&AGtTurretBase::Attack,
+	3.0f,
+	false
+	);
 }
 
 void AGtTurretBase::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
-                                   UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+								   UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	UE_LOG(LogTemp, Warning, TEXT("Turrent is Find Enermy"));
 	bIsFindEnermy = true;
 	FindEnemyActor = OtherActor;
+	EnermySearchTimerReset();
+	AttackTimerReset();
 }
 
 void AGtTurretBase::OnOverlapEnd(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
@@ -80,6 +66,42 @@ void AGtTurretBase::OnOverlapEnd(UPrimitiveComponent* OverlappedComp, AActor* Ot
 	UE_LOG(LogTemp, Warning, TEXT("Turrent lose Enermy"));
 	bIsFindEnermy = false;
 	FindEnemyActor = nullptr;
+	GetWorldTimerManager().ClearTimer(AttackReadyHandle);
+	GetWorldTimerManager().ClearTimer(FindEnermyHandle);
 }
 
+void AGtTurretBase::LookAt()
+{
+	if (!FindEnemyActor) return;
+    
+	// 타겟을 향한 방향 벡터 계산
+	FVector Direction = FindEnemyActor->GetActorLocation() - GetActorLocation();
+	Direction.Z = 0; // 수평 회전만 적용 (필요에 따라 조정)
+    
+	// 방향 벡터를 회전값으로 변환
+	FRotator CurrentRotation = GetActorRotation();
+	FRotator TargetRotation = FRotationMatrix::MakeFromX(Direction).Rotator();
+	FRotator NewRotation = FMath::RInterpTo(CurrentRotation, TargetRotation, GetWorld()->GetDeltaSeconds(), 8.0f);
+    
+	// 터렛 회전 적용
+	SetActorRotation(NewRotation);
+
+	UE_LOG(LogTemp, Warning, TEXT("Turrent is running"));
+
+	EnermySearchTimerReset();		
+}
+
+void AGtTurretBase::Attack()
+{
+	//about attack system
+	//it works after 3second
+	UE_LOG(LogTemp, Warning, TEXT("Turrent Attack Enermy"));
+	bIsReadyToAttack = true;
+	
+	if (FindEnemyActor)
+	{
+		AttackTimerReset();
+	}
+	
+}
 

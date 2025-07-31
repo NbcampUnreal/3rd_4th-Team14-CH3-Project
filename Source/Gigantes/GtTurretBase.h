@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Pawn.h"
 #include "Components/SphereComponent.h"
-#include "GameFramework/Pawn.h"
 #include "GtTurretBase.generated.h"
 
 
@@ -15,11 +14,9 @@ class GIGANTES_API AGtTurretBase : public APawn
 	GENERATED_BODY()
 
 public:
-	// Sets default values for this pawn's properties
 	AGtTurretBase();
 
 protected:
-	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Turret")
@@ -28,14 +25,27 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Turret")
 	USphereComponent* Collision;
 
-	void EnermySearch();
-	FTimerHandle FindEnermyHandle;
+	//boolean
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Turret")
 	bool bIsFindEnermy;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Turret")
+	bool bIsReadyToAttack;
 	
+	//timer
+	FTimerHandle FindEnermyHandle;
+	FTimerHandle AttackReadyHandle;
+	
+	//Actor	
 	AActor* FindEnemyActor;
-
+		
 	UFUNCTION()
-	void LookAt(AActor* Target);
+	void EnermySearchTimerReset();
+	void AttackTimerReset();
+	UFUNCTION()
+	void LookAt();
+	void Attack();
+
+	void EnermySearch();
 	
 public:	
 	UFUNCTION()
