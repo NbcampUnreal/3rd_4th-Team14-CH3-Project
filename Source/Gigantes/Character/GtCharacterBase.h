@@ -76,13 +76,13 @@ protected:
 	void HandleDamageResult(const FGtDamageResult& DamageResult);
 	
 public:
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Attributes")
 	TObjectPtr<UGtAttributeComponent> AttributeComponent;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gameplay|Damage")
 	TObjectPtr<UGtDamageReceiverComponent> DamageReceiverComponent;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AIPerception|Source")
 	TObjectPtr<UAIPerceptionStimuliSourceComponent> AIPerceptionStimuliSourceComponent;
 	
 	UPROPERTY(BlueprintAssignable, Category="Status")
