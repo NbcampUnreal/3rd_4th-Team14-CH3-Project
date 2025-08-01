@@ -20,6 +20,12 @@ AGtTurretBase::AGtTurretBase()
 	bIsFindEnermy = false;
 	bIsReadyToAttack = false;
 	FindEnemyActor = nullptr;
+
+	TurretMaxHP = 100;
+	TurretCurrentHP = TurretMaxHP;
+
+	TurretDamage = 10;
+	TurretReloadTime = 0.1f;
 }
 
 
@@ -45,7 +51,19 @@ void AGtTurretBase::AttackTimerReset()
 	AttackReadyHandle,
 	this,
 	&AGtTurretBase::Attack,
-	3.0f,
+	1.0f,
+	false,
+	2.0f
+	);
+}
+
+void AGtTurretBase::ReloadTimerReset()
+{
+	GetWorldTimerManager().SetTimer(
+	ReloadHandle,
+	this,
+	&AGtTurretBase::Reload,
+	0.5f,
 	false
 	);
 }
@@ -53,11 +71,15 @@ void AGtTurretBase::AttackTimerReset()
 void AGtTurretBase::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
 								   UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
+	/*
+	if (OtherActor->ActorHasTag("Player"))
+	{*/
 	UE_LOG(LogTemp, Warning, TEXT("Turrent is Find Enermy"));
 	bIsFindEnermy = true;
 	FindEnemyActor = OtherActor;
 	EnermySearchTimerReset();
-	AttackTimerReset();
+	AttackTimerReset();	
+	//}
 }
 
 void AGtTurretBase::OnOverlapEnd(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
@@ -66,8 +88,9 @@ void AGtTurretBase::OnOverlapEnd(UPrimitiveComponent* OverlappedComp, AActor* Ot
 	UE_LOG(LogTemp, Warning, TEXT("Turrent lose Enermy"));
 	bIsFindEnermy = false;
 	FindEnemyActor = nullptr;
-	GetWorldTimerManager().ClearTimer(AttackReadyHandle);
 	GetWorldTimerManager().ClearTimer(FindEnermyHandle);
+	GetWorldTimerManager().ClearTimer(AttackReadyHandle);
+	GetWorldTimerManager().ClearTimer(ReloadHandle);
 }
 
 void AGtTurretBase::LookAt()
@@ -95,13 +118,33 @@ void AGtTurretBase::Attack()
 {
 	//about attack system
 	//it works after 3second
-	UE_LOG(LogTemp, Warning, TEXT("Turrent Attack Enermy"));
+	GetWorldTimerManager().ClearTimer(ReloadHandle);
 	bIsReadyToAttack = true;
-	
+	UE_LOG(LogTemp, Warning, TEXT("Turrent Attack Enermy"));
+	if (FindEnemyActor)
+	{
+		ReloadTimerReset();
+	}
+}
+
+void AGtTurretBase::Reload()
+{
+	GetWorldTimerManager().ClearTimer(AttackReadyHandle);
+
+	bIsReadyToAttack = false;
+	UE_LOG(LogTemp, Warning, TEXT("Turrent Reload"));
 	if (FindEnemyActor)
 	{
 		AttackTimerReset();
 	}
-	
 }
 
+void AGtTurretBase::SetHP(int value)
+{
+	TurretCurrentHP += value;
+}
+
+int AGtTurretBase::GetHP()
+{
+	return TurretCurrentHP;
+}
