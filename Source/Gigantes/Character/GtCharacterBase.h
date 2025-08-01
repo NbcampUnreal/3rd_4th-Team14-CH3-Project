@@ -85,9 +85,12 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AIPerception|Source")
 	TObjectPtr<UAIPerceptionStimuliSourceComponent> AIPerceptionStimuliSourceComponent;
 	
-	UPROPERTY(BlueprintAssignable, Category="Status")
+	UPROPERTY(BlueprintAssignable, Category= "Status")
 	FOnStatusTagChanged OnStatusTagChanged;
 
+	UFUNCTION(BlueprintCallable, Category = "Status")
+	const FGameplayTagContainer& GetStatusTags() { return StatusTags; };
+	
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Status")
 	FGameplayTagContainer StatusTags;
