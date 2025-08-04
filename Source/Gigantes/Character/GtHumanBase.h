@@ -12,6 +12,6 @@ class GIGANTES_API AGtHumanBase : public AGtCharacterBase
 	GENERATED_BODY()
 
 public:
-	AGtHumanBase(FObjectInitializer const& ObjectInitializer = FObjectInitializer::Get());
+	AGtHumanBase(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 };

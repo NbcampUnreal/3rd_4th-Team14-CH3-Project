@@ -1,6 +1,6 @@
 #include "GtHumanBase.h"
 
-AGtHumanBase::AGtHumanBase(FObjectInitializer const& ObjectInitializer)
+AGtHumanBase::AGtHumanBase(const FObjectInitializer & ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	PrimaryActorTick.bCanEverTick = false;

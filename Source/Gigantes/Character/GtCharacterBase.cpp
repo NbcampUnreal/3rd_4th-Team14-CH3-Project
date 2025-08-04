@@ -120,6 +120,11 @@ void AGtCharacterBase::AddHealth(float Delta)
 	}
 }
 
+bool AGtCharacterBase::HasStatusTag(const FGameplayTag& StatusTag) const
+{
+	return StatusTags.HasTag(StatusTag);
+}
+
 bool AGtCharacterBase::HasStatusTagExact(const FGameplayTag& StatusTag) const
 {
 	return StatusTags.HasTagExact(StatusTag);

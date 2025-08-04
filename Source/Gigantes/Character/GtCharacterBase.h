@@ -12,7 +12,7 @@ struct FGtDamageResult;
 class UGtAttributeComponent;
 class UGtDamageReceiverComponent;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnStatusTagChanged, FGameplayTag, Tag, bool, bAdded);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnStatusTagChanged, const FGameplayTag&, Tag, bool, bAdded);
 DECLARE_DELEGATE_TwoParams(FAttributeChangedHandler, float /*OldValue*/, float /*NewValue*/);
 
 UCLASS(Abstract)
@@ -51,6 +51,9 @@ public:
 	/**
 	 * Status Tag 헬퍼 함수
 	 */
+	UFUNCTION(BlueprintCallable, Category="Status")
+	bool HasStatusTag(const FGameplayTag& StatusTag) const;
+	
 	UFUNCTION(BlueprintCallable, Category="Status")
 	bool HasStatusTagExact(const FGameplayTag& StatusTag) const;
 

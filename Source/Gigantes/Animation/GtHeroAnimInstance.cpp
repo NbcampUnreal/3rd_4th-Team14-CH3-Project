@@ -21,12 +21,6 @@ void UGtHeroAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 		return;
 	}
 
-	const FRotator ControlRotation = OwningHeroCharacter->GetControlRotation();
-	const FRotator ActorRotation = OwningHeroCharacter->GetActorRotation();
-
-	AimOffsetPitch = ControlRotation.Pitch;
-
-	FRotator DeltaRotation = ControlRotation - ActorRotation;
-	DeltaRotation.Normalize(); 
-	AimOffsetYaw = DeltaRotation.Yaw;
+	AimOffsetYaw = OwningHeroCharacter->GetAimOffsetYaw();
+	AimOffsetPitch = OwningHeroCharacter->GetAimOffsetPitch();
 }
