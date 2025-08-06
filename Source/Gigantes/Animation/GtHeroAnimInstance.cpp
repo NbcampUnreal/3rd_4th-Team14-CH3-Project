@@ -1,26 +1,55 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "GtHeroAnimInstance.h"
 
+#include "Gigantes/GtGameplayTags.h"
 #include "Gigantes/Character/GtHeroCharacter.h"
+#include "Gigantes/Character/Components/GtHeroMovementComponent.h"
 
-void UGtHeroAnimInstance::NativeInitializeAnimation()
+FGtHeroAnimInstanceProxy::FGtHeroAnimInstanceProxy(UAnimInstance* Instance)
+	: FGtBaseAnimInstanceProxy(Instance) 
 {
-	Super::NativeInitializeAnimation();
-
-	OwningHeroCharacter = Cast<AGtHeroCharacter>(GetOwningActor());
 }
 
-void UGtHeroAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
+void FGtHeroAnimInstanceProxy::PreUpdate(UAnimInstance* InAnimInstance, float DeltaSeconds)
 {
-	Super::NativeUpdateAnimation(DeltaSeconds);
+	FGtBaseAnimInstanceProxy::PreUpdate(InAnimInstance, DeltaSeconds);
 
-	if (!OwningHeroCharacter.IsValid())
+	if (!InAnimInstance) return;
+	
+	AGtHeroCharacter* OwningHeroCharacter = Cast<AGtHeroCharacter>(InAnimInstance->GetOwningActor());
+	if (OwningHeroCharacter)
 	{
-		return;
-	}
+		CachedAimOffsetYaw = OwningHeroCharacter->GetAimOffsetYaw();
+		CachedAimOffsetPitch = OwningHeroCharacter->GetAimOffsetPitch();
 
-	AimOffsetYaw = OwningHeroCharacter->GetAimOffsetYaw();
-	AimOffsetPitch = OwningHeroCharacter->GetAimOffsetPitch();
+		if (UGtHeroMovementComponent* HeroMovementComponent = Cast<UGtHeroMovementComponent>(OwningHeroCharacter->GetCharacterMovement()))
+		{
+			CachedGroundDistance = HeroMovementComponent->GetGroundDistance();
+		}
+	}
 }
+
+FAnimInstanceProxy* UGtHeroAnimInstance::CreateAnimInstanceProxy()
+{
+	return new FGtHeroAnimInstanceProxy(this);
+}
+
+void UGtHeroAnimInstance::DestroyAnimInstanceProxy(FAnimInstanceProxy* InProxy)
+{
+	delete InProxy;
+}
+
+void UGtHeroAnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds)
+{
+	Super::NativeThreadSafeUpdateAnimation(DeltaSeconds);
+
+	const auto& HeroAnimProxy = GetProxyOnAnyThread<FGtHeroAnimInstanceProxy>();
+
+	bIsWallRunning = StatusTags.HasTag(GtGameplayTags::Status_Action_WallRunning);
+	bIsWallRunningRight = StatusTags.HasTag(GtGameplayTags::Status_Action_WallRunning_Right);
+    
+	AimOffsetYaw = HeroAnimProxy.CachedAimOffsetYaw;
+	AimOffsetPitch = HeroAnimProxy.CachedAimOffsetPitch;
+
+	GroundDistance = HeroAnimProxy.CachedGroundDistance;
+}
+

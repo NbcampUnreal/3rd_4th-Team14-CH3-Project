@@ -32,10 +32,19 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Movement|WallRun")
 	FVector GetWallRunNormal() const { return WallRunNormal; }
 
+	UFUNCTION(BlueprintCallable, Category = "Movement")
+	float GetGroundDistance();
+
+	void InvalidateGroundInfo();
+
 protected:
+	virtual void OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode) override;
 	virtual void PhysCustom(float DeltaTime, int32 Iterations) override;
 	void PhysWallRun(float DeltaTime, int32 Iterations);
 
+private:
+	float CalculateGroundDistance() const;
+	
 public:
 
 	/**
@@ -49,7 +58,11 @@ public:
 	// 월런을 시작하기 위한 최소 공중 높이 (바닥에서 바로 타는 것 방지)
 	UPROPERTY(EditDefaultsOnly, Category = "Movement|WallRun")
 	float WallRunMinHeight = 50.f; 
- 
+
+	// 월런을 시작하기 위한 최소 공중 높이 (바닥에서 바로 타는 것 방지)
+	UPROPERTY(EditDefaultsOnly, Category = "Movement|WallRun")
+	float WallRunKeepMinHeight = 10.f; 
+	
 	// 월런 중 적용될 중력 배율
 	UPROPERTY(EditDefaultsOnly, Category = "Movement|WallRun")
 	float WallRunGravityScale = 0.2f; 
@@ -81,7 +94,14 @@ public:
 protected:
 	UPROPERTY()
 	TObjectPtr<AGtHeroCharacter> HeroCharacterOwner   =  nullptr;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Movement|Ground")
+	float GroundTraceDistance = 500.0f;
 	
 private:
 	FVector WallRunNormal = FVector::ZeroVector;
+
+	// 캐싱된 Ground Distance 정보
+	float CachedGroundDistance = 0.0f;
+	uint32 CachedGroundInfoFrame = 0;
 };

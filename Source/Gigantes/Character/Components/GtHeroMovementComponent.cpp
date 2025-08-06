@@ -14,6 +14,12 @@ void UGtHeroMovementComponent::SetUpdatedComponent(USceneComponent* NewUpdatedCo
     HeroCharacterOwner = Cast<AGtHeroCharacter>(CharacterOwner);
 }
 
+void UGtHeroMovementComponent::OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode)
+{
+    Super::OnMovementModeChanged(PreviousMovementMode, PreviousCustomMode);
+    InvalidateGroundInfo();
+}
+
 void UGtHeroMovementComponent::TryEnterWallRun(bool& bOutWallRunIsPossible, bool& bOutIsRightWall)
 {
     bOutWallRunIsPossible = false;
@@ -86,17 +92,16 @@ void UGtHeroMovementComponent::EndWallRun(const FHitResult* FloorHitOption)
     // 월런 내부 상태 정리
     WallRunNormal = FVector::ZeroVector;
 
-    // 바닥 히트가 있고 걷기 가능한 표면이면 → 걷기 + Landed
+    // 바닥 히트가 있고 걷기 가능한 표면이면 → 걷기
     if (FloorHitOption && IsWalkable(*FloorHitOption))
     {
-        SetMovementMode(MOVE_Falling);
-
+        SetMovementMode(MOVE_Walking);
+        StopMovementImmediately();
         if (CharacterOwner)
         {
             // 점프카운트 리셋등 델리게이트로 처리
             CharacterOwner->Landed(*FloorHitOption);
         }
-        Velocity = FVector::ZeroVector;
         return;
     }
 
@@ -142,13 +147,15 @@ void UGtHeroMovementComponent::PhysWallRun(float DeltaTime, int32 Iterations)
     }
 
     WallRunNormal = WallHit.ImpactNormal;
-
-    // 바닥 근접 체크
-    FHitResult FloorHit;
-    if (GetWorld()->LineTraceSingleByChannel(FloorHit, TraceStart, 
-        TraceStart + FVector::DownVector * WallRunMinHeight * 0.7f, ECC_Visibility, QueryParams))
+    
+    const float CurrentGroundDistance = GetGroundDistance();
+    
+    // 월런 중 바닥과의 최소 거리 체크
+    if (CurrentGroundDistance < WallRunKeepMinHeight)
     {
-        EndWallRun(&FloorHit);
+        // 바닥이 충분히 가까우면 어차피 곧 착지할 것이므로
+        // FloorHit 없이 EndWallRun 호출
+        EndWallRun();
         return;
     }
     
@@ -289,5 +296,72 @@ void UGtHeroMovementComponent::PhysWallRun(float DeltaTime, int32 Iterations)
             Velocity.Z, HorizontalSpeed, WallRunGravityScale));
     }
 }
+
+float UGtHeroMovementComponent::GetGroundDistance()
+{
+    // 이미 이번 프레임에 계산했으면 캐시 반환
+    if (GFrameCounter == CachedGroundInfoFrame)
+    {
+        return CachedGroundDistance;
+    }
+    
+    // 새로 계산
+    CachedGroundDistance = CalculateGroundDistance();
+    CachedGroundInfoFrame = GFrameCounter;
+    
+    return CachedGroundDistance;
+}
+
+float UGtHeroMovementComponent::CalculateGroundDistance() const
+{
+    if (!CharacterOwner)
+    {
+        return 0.0f;
+    }
+    
+    // 땅에 있으면 0
+    if (IsMovingOnGround())
+    {
+        return 0.0f;
+    }
+    
+    // 공중에 있을 때만 거리 계산
+    const UCapsuleComponent* CapsuleComp = CharacterOwner->GetCapsuleComponent();
+    if (!CapsuleComp)
+    {
+        return GroundTraceDistance;
+    }
+    
+    const float CapsuleHalfHeight = CapsuleComp->GetScaledCapsuleHalfHeight();
+    const FVector TraceStart = CharacterOwner->GetActorLocation();
+    const FVector TraceEnd = TraceStart - FVector(0, 0, GroundTraceDistance + CapsuleHalfHeight);
+    
+    FHitResult HitResult;
+    FCollisionQueryParams QueryParams(NAME_None, false, CharacterOwner);
+    QueryParams.bReturnPhysicalMaterial = false;
+    
+    // 바닥 체크
+    if (GetWorld()->LineTraceSingleByChannel(
+        HitResult,
+        TraceStart,
+        TraceEnd,
+        ECC_Visibility,
+        QueryParams))
+    {
+        // 바닥을 찾았으면 거리 계산
+        return FMath::Max(0.0f, HitResult.Distance - CapsuleHalfHeight);
+    }
+    
+    // 바닥을 못 찾았으면 최대 거리
+    return GroundTraceDistance;
+}
+
+void UGtHeroMovementComponent::InvalidateGroundInfo()
+{
+    CachedGroundInfoFrame = 0;
+}
+
+
+
 
 
