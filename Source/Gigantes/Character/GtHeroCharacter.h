@@ -26,23 +26,23 @@ public:
 	virtual void OnJumped_Implementation() override;
 
 	/**
-	 * TODO: AimOffset 관련 함수들로써 추후 카메라 매니저 등에서 가져올 수 있도록 설정 고려
+	 * Crouch 관련 함수들
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Gameplay|AimOffset")
-	float GetAimOffsetYaw() const { return AimOffsetYaw; }
-    
-	UFUNCTION(BlueprintCallable, Category = "Gameplay|AimOffset")
-	float GetAimOffsetPitch() const { return AimOffsetPitch; }
+	virtual void OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
+	virtual void OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
+	virtual bool CanCrouch() const override;
+
+	USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
+	UGtHeroMovementComponent* GetHeroMovementComponent() const { return HeroMovementComponent; }
 
 protected:
 	virtual void BeginPlay() override;
-	// TODO: AimOffset을 위한 Tick으로써 추후 카메라 매니저 등으로 대체
-	virtual void Tick(float DeltaTime) override;
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	
 	void Input_Move(const FInputActionValue& InputActionValue);
 	void Input_Look(const FInputActionValue& InputActionValue);
 	void Input_Jump(const FInputActionValue& InputActionValue);
+	void Input_Crouch(const FInputActionValue& InputActionValue);
 
 	UFUNCTION()
 	void OnLandedCallback(const FHitResult& Hit);
@@ -52,9 +52,6 @@ protected:
 
 	
 private:
-
-	// TODO: AimOffset을 위한 계산 함수로써 추후 카메라 매니저 등에서 구현 대체
-	void CalculateAimOffset();
 	
 	/**
 	 * WallRun 관련 함수
@@ -81,13 +78,6 @@ protected:
 	int32 JumpCount = 0;
 
 private:
-
-	/**
-	 * AimOffset 관련 변수 TODO: 카메라 매니저 등 구현을 하게 되면 여기서 AimOffset 관리하여 헬퍼 함수로 캐릭터에 전달
-	 */
-	float AimOffsetYaw = 0.0f;
-
-	float AimOffsetPitch = 0.0f;
 	
 	// WallRun 조건 확인을 위한 타이머 핸들
 	FTimerHandle WallRunCheckTimer;

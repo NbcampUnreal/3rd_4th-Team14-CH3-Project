@@ -10,8 +10,7 @@
 AGtHeroCharacter::AGtHeroCharacter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UGtHeroMovementComponent>(ACharacter::CharacterMovementComponentName))
 {
-	// TODO: AimOffset을 위한 Tick으로써 추후 false 가능성 있음
-	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bCanEverTick = false;
 
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
@@ -33,17 +32,11 @@ AGtHeroCharacter::AGtHeroCharacter(const FObjectInitializer& ObjectInitializer)
 void AGtHeroCharacter::BeginPlay()
 {
 	Super::BeginPlay();
-
+	
 	OnStatusTagChanged.AddDynamic(this, &ThisClass::OnCharacterStatusTagChanged);
 	LandedDelegate.AddDynamic(this, &ThisClass::OnLandedCallback);
 }
 
-void AGtHeroCharacter::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-
-	CalculateAimOffset();
-}
 
 void AGtHeroCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
@@ -64,6 +57,7 @@ void AGtHeroCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_Move, ETriggerEvent::Triggered, this, &ThisClass::Input_Move);
 	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_Look, ETriggerEvent::Triggered, this, &ThisClass::Input_Look);
 	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_Jump, ETriggerEvent::Started, this, &ThisClass::Input_Jump);
+	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_Crouch, ETriggerEvent::Started, this, &ThisClass::Input_Crouch);
 }
 
 void AGtHeroCharacter::Input_Move(const FInputActionValue& InputActionValue)
@@ -112,15 +106,23 @@ void AGtHeroCharacter::Input_Look(const FInputActionValue& InputActionValue)
 
 void AGtHeroCharacter::Input_Jump(const FInputActionValue& InputActionValue)
 {
+	// 웅크린 상태에서 점프 입력 시 웅크리기 해제만
+	if (HasStatusTag(GtGameplayTags::Status_Action_Crouching))
+	{
+		UnCrouch();
+		return;  // 점프는 하지 않음
+	}
+	
 	const bool bIsWallRunning = HasStatusTag(GtGameplayTags::Status_Action_WallRunning);
 	
-	// 다른 코드의 JumpEvent 로직처럼, 현재 상태에 따라 분기
+	// 현재 상태에 따라 벽 점프킥 or 일반 점프
 	if (bIsWallRunning && HeroMovementComponent)
 	{
 		// 월런 점프 로직
 		const FVector LaunchVelocity = HeroMovementComponent->GetWallRunNormal() * HeroMovementComponent->WallRunJumpOffForce
 			+ FVector::UpVector * HeroMovementComponent->JumpZVelocity;
 		LaunchCharacter(LaunchVelocity, false, true);
+		JumpCount++;
 
 		// 월런 상태 종료 (태그 제거는 OnMovementModeChanged에서 자동으로 처리될 수 있도록)
 		HeroMovementComponent->EndWallRun();
@@ -132,8 +134,25 @@ void AGtHeroCharacter::Input_Jump(const FInputActionValue& InputActionValue)
 	}
 }
 
+void AGtHeroCharacter::Input_Crouch(const FInputActionValue& InputActionValue)
+{
+	if (HasStatusTag(GtGameplayTags::Status_Action_Crouching))
+	{
+		UnCrouch();
+	}
+	else
+	{
+		Crouch();
+	}
+}
+
 bool AGtHeroCharacter::CanJumpInternal_Implementation() const
 {
+	if (HasStatusTag(GtGameplayTags::Status_Action_Crouching))
+	{
+		return false;
+	}
+	
 	return GetCharacterMovement()->IsMovingOnGround() || JumpCount < MaxJumpCount;
 }
 
@@ -143,6 +162,41 @@ void AGtHeroCharacter::OnJumped_Implementation()
 	JumpCount++;
 
 	StartWallRunCheck();
+}
+
+void AGtHeroCharacter::OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
+{
+	Super::OnStartCrouch(HalfHeightAdjust, ScaledHalfHeightAdjust);
+	AddStatusTag(GtGameplayTags::Status_Action_Crouching);
+}
+
+void AGtHeroCharacter::OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
+{
+	Super::OnEndCrouch(HalfHeightAdjust, ScaledHalfHeightAdjust);
+	RemoveStatusTag(GtGameplayTags::Status_Action_Crouching);
+}
+
+bool AGtHeroCharacter::CanCrouch() const
+{
+	// 월런 상태에서는 Crouch 불가
+	if (HasStatusTag(GtGameplayTags::Status_Action_WallRunning))
+	{
+		return false;
+	}
+    
+	// 공중에서는 Crouch 불가
+	if (GetCharacterMovement() && GetCharacterMovement()->IsFalling())
+	{
+		return false;
+	}
+    
+	// 죽은 상태에서는 Crouch 불가
+	if (HasStatusTag(GtGameplayTags::Status_Dead))
+	{
+		return false;
+	}
+	
+	return Super::CanCrouch();
 }
 
 void AGtHeroCharacter::OnLandedCallback(const FHitResult& Hit)
@@ -226,31 +280,6 @@ void AGtHeroCharacter::OnCharacterStatusTagChanged(const FGameplayTag& StatusTag
 	}
 }
 
-// TODO: AimOffset을 위한 계산 함수로써 추후 카메라 매니저 등에서 구현 대체
-void AGtHeroCharacter::CalculateAimOffset()
-{
-	if (!Controller)
-	{
-		AimOffsetYaw = 0.0f;
-		AimOffsetPitch = 0.0f;
-		return;
-	}
-    
-	const FRotator ControlRotation = Controller->GetControlRotation();
-	const FRotator CharacterRotation = GetActorRotation();
-    
-	// 월런 중일 때만 AimOffset 계산
-	if (HasStatusTag(GtGameplayTags::Status_Action_WallRunning))
-	{
-		AimOffsetYaw = FRotator::NormalizeAxis(ControlRotation.Yaw - CharacterRotation.Yaw);
-		AimOffsetPitch = FRotator::NormalizeAxis(ControlRotation.Pitch);
-	}
-	else
-	{
-		// 일반 상태에서는 캐릭터가 회전하므로 Yaw는 0
-		AimOffsetYaw = 0.0f;
-		AimOffsetPitch = FRotator::NormalizeAxis(ControlRotation.Pitch);
-	}
-}
+
 
 

@@ -3,7 +3,9 @@
 
 #include "GtPlayerController.h"
 
+#include "GtPlayerCameraManager.h"
+
 AGtPlayerController::AGtPlayerController()
 {
-	
+	PlayerCameraManagerClass = AGtPlayerCameraManager::StaticClass();
 }

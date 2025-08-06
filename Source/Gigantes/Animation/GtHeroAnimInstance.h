@@ -44,4 +44,6 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	bool bIsWallRunningRight;  // true = 오른쪽, false = 왼쪽
 
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	bool bIsCrouching;
 };

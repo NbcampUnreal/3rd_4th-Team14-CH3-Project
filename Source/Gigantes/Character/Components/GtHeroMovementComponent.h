@@ -13,6 +13,7 @@ enum ECustomMovementMode
 {
 	CMM_None UMETA(DisplayName = "None"),
 	CMM_WallRun UMETA(DisplayName = "WallRun"),
+	CMM_Slide UMETA(DisplayName = "Slide")
 	
 };
 
@@ -25,7 +26,7 @@ public:
 	UGtHeroMovementComponent();
 
 	virtual void SetUpdatedComponent(USceneComponent* NewUpdatedComponent) override;
-	
+
 	void TryEnterWallRun(bool& bOutWallRunIsPossible, bool& bOutIsRightWall);
 	void EndWallRun(const FHitResult* FloorHitOption = nullptr);
 	
@@ -97,7 +98,7 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Movement|Ground")
 	float GroundTraceDistance = 500.0f;
-	
+
 private:
 	FVector WallRunNormal = FVector::ZeroVector;
 

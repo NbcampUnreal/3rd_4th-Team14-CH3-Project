@@ -2,9 +2,13 @@
 
 #include "Components/CapsuleComponent.h"
 #include "Gigantes/Character/GtHeroCharacter.h"
+#include "Gigantes/Player/GtPlayerCameraManager.h"
 
 UGtHeroMovementComponent::UGtHeroMovementComponent()
 {
+    NavAgentProps.bCanCrouch = true;
+    bCanWalkOffLedgesWhenCrouching = true;
+ 
 }
 
 void UGtHeroMovementComponent::SetUpdatedComponent(USceneComponent* NewUpdatedComponent)
@@ -169,45 +173,39 @@ void UGtHeroMovementComponent::PhysWallRun(float DeltaTime, int32 Iterations)
         return;
     }
     
-    // AimOffset 기반 시선 체크
-    if (HeroCharacterOwner)
+    if (AGtHeroCharacter* Hero = HeroCharacterOwner)
     {
-        const float CurrentAimOffsetYaw = HeroCharacterOwner->GetAimOffsetYaw();
-        
-        // 월런 중인 벽의 방향 확인
-        const bool bIsRightWall = FVector::DotProduct(WallRunNormal, UpdatedComponent->GetRightVector()) < 0;
-        
-        // 벽 반대편을 보고 있는지 체크
-        bool bLookingAwayFromWall = false;
-        
-        if (bIsRightWall)
+        if (APlayerController* PC = Cast<APlayerController>(Hero->GetController()))
         {
-            // 오른쪽 벽: 왼쪽을 봐야 함 (AimOffset이 음수)
-            bLookingAwayFromWall = (CurrentAimOffsetYaw >= -100.0f && CurrentAimOffsetYaw <= 50.0f);
-        }
-        else
-        {
-            // 왼쪽 벽: 오른쪽을 봐야 함 (AimOffset이 양수)
-            bLookingAwayFromWall = (CurrentAimOffsetYaw >= -50.0f && CurrentAimOffsetYaw <= 100.0f);
-        }
-        
-        // 벽을 너무 직접적으로 보면 월런 종료
-        if (!bLookingAwayFromWall)
-        {
-            UE_LOG(LogTemp, Warning, TEXT("AimOffset out of valid range. Yaw: %.1f"), CurrentAimOffsetYaw);
-            EndWallRun();
-            return;
-        }
-        
-        // 디버그 표시
-        if (GEngine)
-        {
-            FString WallSide = bIsRightWall ? TEXT("Right") : TEXT("Left");
-            GEngine->AddOnScreenDebugMessage(2, 0.f, FColor::Green, 
-                FString::Printf(TEXT("WallRun %s - AimOffset: %.1f"), *WallSide, CurrentAimOffsetYaw));
+            if (AGtPlayerCameraManager* CameraManager = Cast<AGtPlayerCameraManager>(PC->PlayerCameraManager))
+            {
+                const float CurrentAimOffsetYaw = CameraManager->GetAimOffsetYaw();
+                
+                // 월런 중 시선 체크 로직
+                const bool bIsRightWall = FVector::DotProduct(WallRunNormal, UpdatedComponent->GetRightVector()) < 0;
+                
+                // 벽을 직접 바라보면 월런 종료
+                if (bIsRightWall)
+                {
+                    // 오른쪽 벽: 왼쪽을 봐야 함
+                    if (CurrentAimOffsetYaw < -100.0f || CurrentAimOffsetYaw > 50.0f)
+                    {
+                        EndWallRun();
+                        return;
+                    }
+                }
+                else
+                {
+                    // 왼쪽 벽: 오른쪽을 봐야 함  
+                    if (CurrentAimOffsetYaw < -50.0f || CurrentAimOffsetYaw > 100.0f)
+                    {
+                        EndWallRun();
+                        return;
+                    }
+                }
+            }
         }
     }
-    
     
     // 월런 진행 방향 계산
     FVector WallDirection = FVector::CrossProduct(WallRunNormal, FVector::UpVector).GetSafeNormal();
@@ -360,6 +358,7 @@ void UGtHeroMovementComponent::InvalidateGroundInfo()
 {
     CachedGroundInfoFrame = 0;
 }
+
 
 
 
