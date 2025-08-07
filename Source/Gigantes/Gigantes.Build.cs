@@ -8,20 +8,36 @@ public class Gigantes : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "AIModule", "NavigationSystem",
-			"GameplayTasks", "GameplayTags", "UMG" });
+		PublicDependencyModuleNames.AddRange(new string[] { 
+			"Core", 
+			"CoreUObject", 
+			"Engine", 
+			"InputCore", 
+			"EnhancedInput", 
+			"AIModule", 
+			"NavigationSystem",
+			"GameplayTasks", 
+			"GameplayTags", 
+			"UMG",
+			"Json",
+			"JsonUtilities"
+		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });
 		
+		// if (Target.Type == TargetType.Editor)
+		// {
+		// 	PrivateDependencyModuleNames.Add("UnrealEd");
+		// }
+		
 		PublicIncludePaths.AddRange(new string[]
 		{
+			"Source/Gigantes/AI",
 			"Source/Gigantes/Character",
 			"Source/Gigantes/GameModes",
 			"Source/Gigantes/Player",
 			"Source/Gigantes/Items",
 			"Source/Gigantes/UI",
-			"Source/Gigantes/AI",
-			"Source/Gigantes/Weapons",
 			"Source/Gigantes/Input"
 		});
 		
