@@ -1,6 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "GtRiffle.h"
 
 
@@ -16,12 +13,12 @@ void AGtRiffle::InitFromData(const FGtItemData& InData)
 	Super::InitFromData(InData);
 }
 
-void AGtRiffle::Fire()
+void AGtRiffle::OnFire()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[Riffle] Fire! Rate: %f"), FireRate);
+	
 }
 
-void AGtRiffle::Reload()
+void AGtRiffle::OnReload()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[Riffle] Reloading..."));
+	
 }
