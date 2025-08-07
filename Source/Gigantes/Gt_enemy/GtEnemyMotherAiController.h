@@ -27,6 +27,7 @@ protected:
 
 	//timer
 	FTimerHandle FindPlayerHandle;
+	FVector PastPlayerPosition;
 	
 	void FindPlayerPosition();
 	int RandomNumber();

@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Perception/AISenseConfig_Sight.h"
+#include "Perception/AISense_Sight.h"
+#include "TimerManager.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/ScriptMacros.h"
 #include "AIController.h"
@@ -12,12 +15,11 @@
 	UENUM(BlueprintType)
 enum class EAiState : uint8
 	{
-		Idle       UMETA(DisplayName = "Idle"),
-		MotherAi   UMETA(DisplayName = "MotherAi"),
-		Random     UMETA(DisplayName = "Random"),
-		Chase      UMETA(DisplayName = "Chase"),
-		Attack     UMETA(DisplayName = "Attack"),
-		Reload     UMETA(DisplayName = "Reload")
+		Idle			UMETA(DisplayName = "Idle"),
+		Move			UMETA(DisplayName = "Move"),
+		Chase			UMETA(DisplayName = "Chase"),
+		Attack			UMETA(DisplayName = "Attack"),
+		Reload			UMETA(DisplayName = "Reload")
 	};
 
 UCLASS()
@@ -40,21 +42,20 @@ protected:
 	float MoveRadius = 1000.0f;
 	UFUNCTION()
 	void OnPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus);
-	void AiSelectItSelf();
-	virtual void OnPossess(APawn* InPawn) override;
 	UPROPERTY()
 	AActor* CurrentTarget = nullptr;
 	FVector MotherAiPosition;
+	int ObeyValue;
 	
 	//timer
 	bool bIsChasing = false;
 	void SelectTimerChoice(EAiState AiState);
-	FTimerHandle ChaseTimer;
-	FTimerHandle RandomMoveTimer;
+	
+	FTimerHandle MoveToTimer;
 	FTimerHandle AttackTimer;
 	FTimerHandle ReloadTimer;
-	void RandomMoveTimerOn();
-	void ChaseTimerOn();
+	void MoveToTimerOn();
+	
 	void AttackTimerOn();
 	void ReloadTimerOn();
 	//timer_clear
@@ -62,12 +63,10 @@ protected:
 
 	//movement-idle
 	void IdleAction();
-	void GetMotherAiPosition(FVector CharPosition);
-	//movement-follow_mother_ai
 	UFUNCTION()
-	void FollowMotherAiPlayerPosition();
+	void GetMotherAiPosition(FVector CharPosition);
 	//movement-Random
-	void MoveToRandomLocation();
+	void MoveRandomOrAiLocation();
 	//movement-chase
 	void StartChasing(AActor* Target);
 	void UpdateChase();
