@@ -1,0 +1,14 @@
+[
+  {
+    "ItemId": "rifle_ak47_01",
+    "Name": "AK-47",
+    "ItemType": "Weapon",
+    "SubType": "Riffle",
+    "Description": "Full auto assault rifle",
+    "Damage": 30,
+    "MagazineSize": 30,
+    "FireRate": 0.09,
+    "ReloadTime": 2.2,
+    "ItemTag": "Item.Weapon.Riffle"
+  }
+]

@@ -9,7 +9,7 @@ public class Gigantes : ModuleRules
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "AIModule", "NavigationSystem",
-			"GameplayTasks", "GameplayTags", "UMG" });
+			"GameplayTasks", "GameplayTags", "UMG", "AnimGraphRuntime" });
 
 		PrivateDependencyModuleNames.AddRange(new string[] { "AnimGraph" });
 		
@@ -22,7 +22,9 @@ public class Gigantes : ModuleRules
 			"Source/Gigantes/UI",
 			"Source/Gigantes/AI",
 			"Source/Gigantes/Weapons",
-			"Source/Gigantes/Input"
+			"Source/Gigantes/Input",
+			"Source/Gigantes/Gameplay",
+			"Source/Gigantes/Animation"
 		});
 		
 		// Uncomment if you are using Slate UI
