@@ -19,7 +19,7 @@ public class Gigantes : ModuleRules
 			"GameplayTasks", 
 			"GameplayTags", 
 			"UMG",
-      "AnimGraphRuntime",
+      		"AnimGraphRuntime",
 			"Json",
 			"JsonUtilities"
 		});
@@ -39,7 +39,7 @@ public class Gigantes : ModuleRules
 			"Source/Gigantes/Player",
 			"Source/Gigantes/Items",
 			"Source/Gigantes/UI",
-			"Source/Gigantes/Input"
+			"Source/Gigantes/Input",
 			"Source/Gigantes/Gameplay",
 			"Source/Gigantes/Animation"
 		});
