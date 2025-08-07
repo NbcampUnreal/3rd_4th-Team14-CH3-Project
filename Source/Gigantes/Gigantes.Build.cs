@@ -19,11 +19,12 @@ public class Gigantes : ModuleRules
 			"GameplayTasks", 
 			"GameplayTags", 
 			"UMG",
+      "AnimGraphRuntime",
 			"Json",
 			"JsonUtilities"
 		});
 
-		PrivateDependencyModuleNames.AddRange(new string[] {  });
+		PrivateDependencyModuleNames.AddRange(new string[] { "AnimGraph" });
 		
 		// if (Target.Type == TargetType.Editor)
 		// {
@@ -39,6 +40,8 @@ public class Gigantes : ModuleRules
 			"Source/Gigantes/Items",
 			"Source/Gigantes/UI",
 			"Source/Gigantes/Input"
+			"Source/Gigantes/Gameplay",
+			"Source/Gigantes/Animation"
 		});
 		
 		// Uncomment if you are using Slate UI
