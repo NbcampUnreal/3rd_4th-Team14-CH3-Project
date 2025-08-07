@@ -32,6 +32,12 @@ public:
 	virtual void OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 	virtual bool CanCrouch() const override;
 
+	/**
+	 * Slide 관련 함수들
+	 */
+	virtual void OnStartSlide(float HalfHeightAdjust, float ScaledHalfHeightAdjust);
+	virtual void OnEndSlide(float HalfHeightAdjust, float ScaledHalfHeightAdjust);
+
 	USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	UGtHeroMovementComponent* GetHeroMovementComponent() const { return HeroMovementComponent; }
 
@@ -50,6 +56,9 @@ protected:
 	UFUNCTION()
 	void OnCharacterStatusTagChanged(const FGameplayTag& StatusTag, bool bAdded);
 
+	bool ShouldStartSlide() const;
+	void StartSlide();
+	void EndSlide();
 	
 private:
 	

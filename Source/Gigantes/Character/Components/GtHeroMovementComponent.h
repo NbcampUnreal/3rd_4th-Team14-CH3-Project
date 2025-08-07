@@ -29,6 +29,10 @@ public:
 
 	void TryEnterWallRun(bool& bOutWallRunIsPossible, bool& bOutIsRightWall);
 	void EndWallRun(const FHitResult* FloorHitOption = nullptr);
+
+	void StartSlide();
+	void EndSlide();
+	bool CanSlide() const;
 	
 	UFUNCTION(BlueprintPure, Category = "Movement|WallRun")
 	FVector GetWallRunNormal() const { return WallRunNormal; }
@@ -41,10 +45,16 @@ public:
 protected:
 	virtual void OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode) override;
 	virtual void PhysCustom(float DeltaTime, int32 Iterations) override;
+	
 	void PhysWallRun(float DeltaTime, int32 Iterations);
+	void PhysSlide(float DeltaTime, int32 Iterations);
 
+	bool CanStandUp() const;
+	bool GetFloorHit(FHitResult& OutHit) const;
+	
 private:
 	float CalculateGroundDistance() const;
+	void CacheInitialValues();
 	
 public:
 
@@ -92,6 +102,30 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Movement|WallRun")
 	float WallRunRotationSpeed = 10.0f;
 
+	/**
+	 * Slide 관련 속성들
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "Movement|Slide")
+	float SlideMinSpeed = 400.0f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Movement|Slide")
+	float SlideMaxSpeed = 1000.0f;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Movement|Slide")
+	float SlideGravityScale = 2.0f;  // 경사면 가속
+
+	UPROPERTY(EditDefaultsOnly, Category = "Movement|Slide")
+	float SlideMinExitSpeed = 200.0f;  // 슬라이드 종료 최소 속도
+    
+	UPROPERTY(EditDefaultsOnly, Category = "Movement|Slide")
+	float SlideBoostMultiplier = 1.2f;  // 슬라이드 시작 시 속도 부스트
+
+	UPROPERTY(EditDefaultsOnly, Category="Movement|Slide")
+	float SlideBrakingDeceleration = 300.f; 
+
+	UPROPERTY(EditDefaultsOnly, Category = "Movement|Slide")
+	float SlideSteeringStrength = 0.1f;  // 슬라이드 중 조향 강도 (0~1)
+
 protected:
 	UPROPERTY()
 	TObjectPtr<AGtHeroCharacter> HeroCharacterOwner   =  nullptr;
@@ -105,4 +139,7 @@ private:
 	// 캐싱된 Ground Distance 정보
 	float CachedGroundDistance = 0.0f;
 	uint32 CachedGroundInfoFrame = 0;
+
+	// Standing 캡슐 높이 캐싱
+	float StandingCapsuleHalfHeight = 96.0f;
 };

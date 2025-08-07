@@ -69,17 +69,13 @@ void AGtHeroCharacter::Input_Move(const FInputActionValue& InputActionValue)
 
 		if (Value.X != 0.0f)
 		{
-			// Left/Right -> X 값에 들어있음:
-			// MovementDirection은 현재 카메라의 RightVector를 의미함 (World-Space)
 			const FVector MovementDirection = MovementRotation.RotateVector(FVector::RightVector);
 
-			// - 내부적으로 MovementDirection * Value.X를 MovementComponent에 적용(더하기)해준다
 			AddMovementInput(MovementDirection, Value.X);
 		}
 
 		if (Value.Y != 0.0f) 
 		{
-			// 앞서 Left/Right와 마찬가지로 Forward/Backward를 적용한다
 			const FVector MovementDirection = MovementRotation.RotateVector(FVector::ForwardVector);
 			AddMovementInput(MovementDirection, Value.Y);
 		}
@@ -106,6 +102,29 @@ void AGtHeroCharacter::Input_Look(const FInputActionValue& InputActionValue)
 
 void AGtHeroCharacter::Input_Jump(const FInputActionValue& InputActionValue)
 {
+	// 슬라이딩 중 점프 시 슬라이드 캔슬하고 점프
+	if (HasStatusTag(GtGameplayTags::Status_Action_Sliding))
+	{
+		// EndSlide 호출 전에 점프 가능 여부를 먼저 체크
+		bool bCanPerformJump = CanJump();
+        
+		// 속도를 미리 저장 (EndSlide 후에도 사용하기 위해)
+		const FVector PreSlideVelocity = GetVelocity();
+        
+		EndSlide();
+        
+		// 미리 체크한 결과로 점프 실행
+		if (bCanPerformJump)
+		{
+			// 현재 속도 방향으로 추가 추진력
+			FVector JumpBoost = PreSlideVelocity.GetSafeNormal2D() * 200.0f;
+			JumpBoost.Z = GetCharacterMovement()->JumpZVelocity;
+			LaunchCharacter(JumpBoost, true, true);
+			JumpCount++;
+		}
+		return;
+	}
+	
 	// 웅크린 상태에서 점프 입력 시 웅크리기 해제만
 	if (HasStatusTag(GtGameplayTags::Status_Action_Crouching))
 	{
@@ -136,9 +155,19 @@ void AGtHeroCharacter::Input_Jump(const FInputActionValue& InputActionValue)
 
 void AGtHeroCharacter::Input_Crouch(const FInputActionValue& InputActionValue)
 {
+	if (HasStatusTag(GtGameplayTags::Status_Action_Sliding))
+	{
+		EndSlide();
+		return;
+	}
+	
 	if (HasStatusTag(GtGameplayTags::Status_Action_Crouching))
 	{
 		UnCrouch();
+	}
+	else if (ShouldStartSlide())
+	{
+		StartSlide();
 	}
 	else
 	{
@@ -148,6 +177,13 @@ void AGtHeroCharacter::Input_Crouch(const FInputActionValue& InputActionValue)
 
 bool AGtHeroCharacter::CanJumpInternal_Implementation() const
 {
+	// 슬라이딩 중에는 점프 가능
+	if (HasStatusTag(GtGameplayTags::Status_Action_Sliding))
+	{
+		return GetCharacterMovement()->IsMovingOnGround() || JumpCount < MaxJumpCount;
+	}
+    
+	// 웅크린 상태에서는 점프 불가
 	if (HasStatusTag(GtGameplayTags::Status_Action_Crouching))
 	{
 		return false;
@@ -199,16 +235,103 @@ bool AGtHeroCharacter::CanCrouch() const
 	return Super::CanCrouch();
 }
 
+bool AGtHeroCharacter::ShouldStartSlide() const
+{
+	if (!HeroMovementComponent)
+		return false;
+
+	if (!HeroMovementComponent->IsMovingOnGround())
+		return false;
+
+	const float CurrentSpeed = GetVelocity().Size2D();
+	if (CurrentSpeed < HeroMovementComponent->SlideMinSpeed)  
+		return false;
+
+	if (HasStatusTag(GtGameplayTags::Status_Action_Sliding))
+		return false;
+
+	if (HasStatusTag(GtGameplayTags::Status_Action_Crouching))
+		return false;
+	
+	return true;
+}
+
+void AGtHeroCharacter::StartSlide()
+{
+	if (!HeroMovementComponent)
+	{
+		return;
+	}
+	// MovementComponent에 슬라이드 움직임 시작 요청
+	HeroMovementComponent->StartSlide();
+	
+	AddStatusTag(GtGameplayTags::Status_Action_Sliding);
+	
+}
+
+void AGtHeroCharacter::EndSlide()
+{
+	if (!HeroMovementComponent)
+		return;
+	
+	HeroMovementComponent->EndSlide();
+}
+
+void AGtHeroCharacter::OnStartSlide(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
+{
+	RecalculateBaseEyeHeight();
+
+	const ACharacter* DefaultChar = GetDefault<ACharacter>(GetClass());
+	if (GetMesh() && DefaultChar->GetMesh())
+	{
+		FVector& MeshRelativeLocation = GetMesh()->GetRelativeLocation_DirectMutable();
+		MeshRelativeLocation.Z = DefaultChar->GetMesh()->GetRelativeLocation().Z + HalfHeightAdjust;
+		BaseTranslationOffset.Z = MeshRelativeLocation.Z;
+	}
+	else
+	{
+		BaseTranslationOffset.Z = DefaultChar->GetBaseTranslationOffset().Z + HalfHeightAdjust;
+	}
+    
+	// 슬라이드 태그 추가
+	AddStatusTag(GtGameplayTags::Status_Action_Sliding);
+}
+
+void AGtHeroCharacter::OnEndSlide(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
+{
+	RecalculateBaseEyeHeight();
+
+	const ACharacter* DefaultChar = GetDefault<ACharacter>(GetClass());
+	if (GetMesh() && DefaultChar->GetMesh())
+	{
+		FVector& MeshRelativeLocation = GetMesh()->GetRelativeLocation_DirectMutable();
+		MeshRelativeLocation.Z = DefaultChar->GetMesh()->GetRelativeLocation().Z;
+		BaseTranslationOffset.Z = MeshRelativeLocation.Z;
+	}
+	else
+	{
+		BaseTranslationOffset.Z = DefaultChar->GetBaseTranslationOffset().Z;
+	}
+    
+	// 슬라이드 태그 제거
+	RemoveStatusTag(GtGameplayTags::Status_Action_Sliding);
+}
+
 void AGtHeroCharacter::OnLandedCallback(const FHitResult& Hit)
 {
 	JumpCount = 0;
-
 	GetWorldTimerManager().ClearTimer(WallRunCheckTimer);
 }
 
 void AGtHeroCharacter::OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode)
 {
-	// 1. 월런 상태에서 벗어날 때
+	// 슬라이드 종료 처리
+	if (PreviousCustomMode == CMM_Slide)
+	{
+		RemoveStatusTag(GtGameplayTags::Status_Action_Sliding);
+	}
+
+	// 월런 종료 처리
 	if (PreviousCustomMode == CMM_WallRun)
 	{
 		HeroMovementComponent->bOrientRotationToMovement = true;
@@ -220,10 +343,8 @@ void AGtHeroCharacter::OnMovementModeChanged(EMovementMode PrevMovementMode, uin
 		}
 	}
 
-	// 2. 절벽 등에서 걸어서 떨어졌을 때 
 	if (PrevMovementMode == MOVE_Walking && GetCharacterMovement()->MovementMode == MOVE_Falling)
 	{
-		// 걸어서 떨어져 공중 상태가 되었으므로, 월런 탐색 시작
 		StartWallRunCheck();
 	}
 }
