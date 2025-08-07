@@ -15,9 +15,15 @@ public:
 
 	virtual void Fire();
 	virtual void Reload();
+	virtual void OnFire();
+	virtual void OnReload();
 
 protected:
 	virtual void InitFromData(const FGtItemData& data) override;
+	void ResetFireCooldown();
+	
+	FTimerHandle ReloadTimer;
+	FTimerHandle FireRateHandle;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Weapon")
 	float Damage;
@@ -32,8 +38,8 @@ protected:
 	int32 MaxAmmo;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Weapon")
-	int32 AmmoInMagazion;
+	int32 AmmoInMagazine;
 	
 	bool bIsReloading;
-	FTimerHandle ReloadTimer;
+
 };

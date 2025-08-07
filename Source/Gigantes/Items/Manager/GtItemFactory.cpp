@@ -1,7 +1,11 @@
 #include "GtItemFactory.h"
 
-#include "IDetailTreeNode.h"
 #include "JsonObjectConverter.h"
+#include "Dom/JsonObject.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
+#include "Policies/CondensedJsonPrintPolicy.h"
+#include "Dom/JsonValue.h"
 #include "Gigantes/Items/Consumables/GtPotion.h"
 #include "Gigantes/Items/Granades/GtNormal.h"
 #include "Gigantes/Items/Weapons/GtRiffle.h"
@@ -10,7 +14,7 @@
  * 맵 / 플래그 정의
  */
 TMap<FGameplayTag, TSubclassOf<AGtItemBase>> UGtItemFactory::ItemClassMap;
-bool bIsInitialized = false;
+bool UGtItemFactory::bIsInitialized = false;
 
 void UGtItemFactory::InitItemClassMap()
 {
@@ -28,16 +32,25 @@ bool UGtItemFactory::LoadItemData(const FString& FilePath, TMap<FString, FGtItem
 {
 	FString JsonStr;
 	if (!FFileHelper::LoadFileToString(JsonStr, *FilePath))
+	{
+		UE_LOG(LogTemp, Error, TEXT("[ItemFactory] Failed to load JSON file: %s"), *FilePath);
 		return false;
-
+	}
+	UE_LOG(LogTemp, Log, TEXT("[ItemFactory] JSON file loaded successfully."));
+	
 	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonStr);
 	TArray<TSharedPtr<FJsonValue>> JsonArray;
 
-	if (!FJsonSerializer::Deserialize(Reader, JsonArray)) return false;
+	if (!FJsonSerializer::Deserialize(Reader, JsonArray) || JsonArray.Num() == 0)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[ItemFactory] Failed to parse JSON or JSON is empty."));
+		return false;
+	}
 
 	for (const auto& JsonValue : JsonArray)
 	{
 		FGtItemData Data;
+		
 		if (FJsonObjectConverter::JsonObjectToUStruct(
 				JsonValue->AsObject().ToSharedRef(), &Data))
 		{

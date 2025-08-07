@@ -25,25 +25,28 @@ struct FGtItemData
 	FString Description;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 Damage;
+	int32 Damage = 0;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 AmmoInMagazine;
+	int32 MaxAmmo = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 MaxAmmo;
+	int32 AmmoInMagazine = 0;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float FireRate;
+	float FireRate = 0.1f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float ReloadTime;
+	float ReloadTime = 1.0f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float ExplosionRadius;
+	float ExplosionRadius = 200.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float ExplosionDelay = 2.0f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 HealAmount;
+	int32 HealAmount = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FGameplayTag ItemTag;

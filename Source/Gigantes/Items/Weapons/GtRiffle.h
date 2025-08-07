@@ -1,5 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -12,7 +10,10 @@ class GIGANTES_API AGtRiffle : public AGtWeaponItem
 	GENERATED_BODY()
 
 public:
-	virtual void Fire() override;
-	virtual void Reload() override;
+	AGtRiffle();
+	
 	virtual void InitFromData(const FGtItemData& data) override;
+	virtual void OnFire() override;
+	virtual void OnReload() override;
+
 };
