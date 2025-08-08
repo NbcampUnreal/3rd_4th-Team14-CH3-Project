@@ -46,4 +46,7 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	bool bIsCrouching;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	bool bIsSliding;
 };
