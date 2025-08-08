@@ -24,8 +24,9 @@ enum class ESlideEndReason : uint8
 {
 	Normal        UMETA(DisplayName = "Normal"),       // 속도 감소 등 자연스러운 종료
 	Jump          UMETA(DisplayName = "Jump"),         // 점프로 인한 종료  
-	Falling          UMETA(DisplayName = "Jump"),         // 낙하로 인한 종료  
+	Falling          UMETA(DisplayName = "Falling"),         // 낙하로 인한 종료  
 	CrouchInput   UMETA(DisplayName = "CrouchInput"),  // Crouch 입력으로 인한 종료
+	BrakeInput      UMETA(DisplayName = "Brake Input"),      // 브레이크(후방/측면) 입력
 	Collision     UMETA(DisplayName = "Collision")     // 충돌로 인한 종료
 };
 
@@ -41,8 +42,11 @@ public:
 
 	virtual void SetUpdatedComponent(USceneComponent* NewUpdatedComponent) override;
 
-	void TryEnterWallRun(bool& bOutWallRunIsPossible, bool& bOutIsRightWall);
-	void EndWallRun(const FHitResult* FloorHitOption = nullptr);
+	void StartWallRun(bool bIsRightWall);
+	void EndWallRun();
+	bool TryEnterWallRun(); 
+	bool IsWallRunning() const { return MovementMode == MOVE_Custom && CustomMovementMode == CMM_WallRun; }
+	bool IsWallRunningRight() const { return IsWallRunning() && bIsRightWall; }
 
 	void StartSlide();
 	void EndSlide(ESlideEndReason Reason = ESlideEndReason::Normal);
@@ -65,10 +69,15 @@ protected:
 	virtual void OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode) override;
 	virtual void PhysCustom(float DeltaTime, int32 Iterations) override;
 	
+	virtual void PhysFalling(float DeltaTime, int32 Iterations) override;
 	void PhysWallRun(float DeltaTime, int32 Iterations);
 	void PhysSlide(float DeltaTime, int32 Iterations);
 
 private:
+
+	void CheckForWallRun();
+	bool ShouldCheckForWallRun() const;
+	
 	void SetCapsuleSize(float TargetHalfHeight);
 	void RestoreCapsuleSize();
 	void TransitionToCrouch();
@@ -121,6 +130,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Movement|WallRun")
 	float WallRunRotationSpeed = 10.0f;
 
+	// 월런 쿨다운 시간
+	UPROPERTY(EditDefaultsOnly, Category = "Movement|WallRun")
+	float WallRunCooldownTime = 0.3f;  // 0.5초 쿨다운
+
 	/**
 	 * Slide 관련 속성들
 	 */
@@ -142,11 +155,14 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category="Movement|Slide")
 	float SlideBrakingDeceleration = 300.f; 
 
-	UPROPERTY(EditDefaultsOnly, Category = "Movement|Slide")
-	float SlideSteeringStrength = 0.1f;  // 슬라이드 중 조향 강도 (0~1)
-
-	// Standing 캡슐 높이 캐싱
-	float StandingCapsuleHalfHeight = 96.0f;
+	UPROPERTY(EditDefaultsOnly, Category = "Movement|Slide", meta = (ClampMin = "0.0", ClampMax = "90.0"))
+	float SlideForwardConeAngle = 60.0f;  // 전방 입력 판정 콘 각도 (도)
+    
+	UPROPERTY(EditDefaultsOnly, Category = "Movement|Slide", meta = (ClampMin = "0.0", ClampMax = "180.0"))
+	float SlideMaxSteeringRate = 30.0f;  // 초당 최대 회전 각도 (도)
+    
+	UPROPERTY(EditDefaultsOnly, Category = "Movement|Slide", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float SlideSteeringResponsiveness = 1.0f;  // 조향 반응성 (0=무시, 1=최대)
 	
 protected:
 	UPROPERTY()
@@ -156,11 +172,24 @@ protected:
 	float GroundTraceDistance = 500.0f;
 
 private:
+	
 	FVector WallRunNormal = FVector::ZeroVector;
 
+	bool bIsRightWall = false;
+    
+	// WallRun 체크 타이머
+	float WallRunCheckInterval = 0.05f;
+	float LastWallRunCheckTime = 0.0f;
+
+	// WallRun 쿨다운 
+	float WallRunEndTime = 0.0f;
+	
 	// 캐싱된 Ground Distance 정보
 	float CachedGroundDistance = 0.0f;
 	uint32 CachedGroundInfoFrame = 0;
+
+	// Standing 캡슐 높이 캐싱
+	float StandingCapsuleHalfHeight = 96.0f;
 	
 	float DefaultGroundFriction;
 	float DefaultBrakingDecelerationWalking;

@@ -110,7 +110,6 @@ void AGtHeroCharacter::Input_Jump(const FInputActionValue& InputActionValue)
 	if (HasStatusTag(GtGameplayTags::Status_Action_Sliding))
 	{
 		const FVector PreSlideVelocity = GetVelocity();
-        
 		HeroMovementComponent->EndSlide(ESlideEndReason::Jump);
 		
 		if (CanJump())
@@ -130,11 +129,9 @@ void AGtHeroCharacter::Input_Jump(const FInputActionValue& InputActionValue)
 		UnCrouch();
 		return;  
 	}
-	
-	const bool bIsWallRunning = HasStatusTag(GtGameplayTags::Status_Action_WallRunning);
-	
+
 	// 현재 상태에 따라 벽 점프킥 or 일반 점프
-	if (bIsWallRunning && HeroMovementComponent)
+	if (HasStatusTag(GtGameplayTags::Status_Action_WallRunning))
 	{
 		// 월런 점프 로직
 		const FVector LaunchVelocity = HeroMovementComponent->GetWallRunNormal() * HeroMovementComponent->WallRunJumpOffForce
@@ -196,8 +193,6 @@ void AGtHeroCharacter::OnJumped_Implementation()
 	Super::OnJumped_Implementation();
 	JumpCount++;
 
-	// TODO : OnMovementModeChanged에서 처리하도록 변경하고 WallRunCoolTime 타이머 도입 해야함
-	StartWallRunCheck();
 }
 
 void AGtHeroCharacter::OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
@@ -282,18 +277,31 @@ void AGtHeroCharacter::HandleCapsuleSizeChanged(float HalfHeightAdjust, float Sc
 void AGtHeroCharacter::OnLandedCallback(const FHitResult& Hit)
 {
 	JumpCount = 0;
-	GetWorldTimerManager().ClearTimer(WallRunCheckTimer);
 }
 
 void AGtHeroCharacter::OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode)
 {
-	// 슬라이드 시작 처리
-	if (GetCharacterMovement()->MovementMode == MOVE_Custom && PreviousCustomMode != CMM_Slide)
+	// 커스텀 움직임 모드(WallRun, Slide 등)에 대한 처리
+	if (GetCharacterMovement()->MovementMode == MOVE_Custom)
 	{
-		if (HeroMovementComponent && HeroMovementComponent->GetCustomMovementMode() == CMM_Slide)
+		if (HeroMovementComponent)
 		{
-			AddStatusTag(GtGameplayTags::Status_Action_Sliding);
-			RemoveStatusTag(GtGameplayTags::Status_Action_Crouching);
+			const uint8 CurrentCustomMode = HeroMovementComponent->GetCustomMovementMode();
+            
+			// Slide 시작
+			if (CurrentCustomMode == CMM_Slide && PreviousCustomMode != CMM_Slide)
+			{
+				AddStatusTag(GtGameplayTags::Status_Action_Sliding);
+				RemoveStatusTag(GtGameplayTags::Status_Action_Crouching);
+			}
+			// Wallrun 시작
+			else if (CurrentCustomMode == CMM_WallRun && PreviousCustomMode != CMM_WallRun)
+			{
+				const FGameplayTag WallRunTag = HeroMovementComponent->IsWallRunningRight() ? 
+					GtGameplayTags::Status_Action_WallRunning_Right : 
+					GtGameplayTags::Status_Action_WallRunning_Left;
+				AddStatusTag(WallRunTag);
+			}
 		}
 	}
     
@@ -302,76 +310,23 @@ void AGtHeroCharacter::OnMovementModeChanged(EMovementMode PrevMovementMode, uin
 	{
 		RemoveStatusTag(GtGameplayTags::Status_Action_Sliding);
         
-		// Crouch 상태로 전환되었는지 확인
 		if (GetCharacterMovement()->IsCrouching())
 		{
 			AddStatusTag(GtGameplayTags::Status_Action_Crouching);
 		}
 	}
-	
+    
 	// 월런 종료 처리
 	if (PreviousCustomMode == CMM_WallRun)
 	{
-		HeroMovementComponent->bOrientRotationToMovement = true;
 		RemoveStatusTag(GtGameplayTags::Status_Action_WallRunning_Left);
 		RemoveStatusTag(GtGameplayTags::Status_Action_WallRunning_Right);
-		if (HeroMovementComponent->IsMovingOnGround())
-		{
-			HeroMovementComponent->StopMovementImmediately();
-		}
-	}
-
-	// TODO : MovementMode == MOVE_Falling 조건만 체크해서 WallRunCheck 시작하도록 하고 WallRunCoolTime 타이머 도입 해야함
-	if (PrevMovementMode == MOVE_Walking && GetCharacterMovement()->MovementMode == MOVE_Falling)
-	{
-		StartWallRunCheck();
-	}
-}
-
-void AGtHeroCharacter::StartWallRunCheck()
-{
-	// 0.05초마다 CheckForWallRun 함수를 반복적으로 호출하는 타이머 설정
-	GetWorldTimerManager().SetTimer(
-		WallRunCheckTimer, 
-		this, 
-		&AGtHeroCharacter::CheckForWallRun, 
-		0.05f, 
-		true, 
-		0.f
-	);
-}
-
-void AGtHeroCharacter::CheckForWallRun()
-{
-	// 월런 상태가 아니고 공중에 있을 때만 탐색
-	if (!HasStatusTag(GtGameplayTags::Status_Action_WallRunning) && HeroMovementComponent->IsFalling())
-	{
-		bool bWallRunPossible, bIsRightWall;
-		HeroMovementComponent->TryEnterWallRun(bWallRunPossible, bIsRightWall);
-
-		// 월런 성공 시
-		if (bWallRunPossible)
-		{
-			// 수동 회전 제어 모드
-			HeroMovementComponent->bOrientRotationToMovement = false;
-			HeroMovementComponent->Velocity.Z = 0;
-			HeroMovementComponent->SetMovementMode(MOVE_Custom, CMM_WallRun);
-			const FGameplayTag WallRunTag = bIsRightWall ? GtGameplayTags::Status_Action_WallRunning_Right : GtGameplayTags::Status_Action_WallRunning_Left;
-			AddStatusTag(WallRunTag);
-
-			// 월런을 시작했으므로 더 이상 탐색할 필요가 없으니 타이머를 중지
-			GetWorldTimerManager().ClearTimer(WallRunCheckTimer);
-		}
-	}
-	else
-	{
-		// 이미 월런 중이거나 땅에 착지했다면, 탐색 타이머 중지
-		GetWorldTimerManager().ClearTimer(WallRunCheckTimer);
 	}
 }
 
 void AGtHeroCharacter::OnCharacterStatusTagChanged(const FGameplayTag& StatusTag, bool bAdded)
 {
+	// TODO : OnMovementModeChanged에서 처리하는 로직으로 대체 고려
 	const bool bIsWallRunTag = StatusTag.MatchesTag(GtGameplayTags::Status_Action_WallRunning);
 
 	if (bIsWallRunTag && bAdded)
@@ -379,7 +334,3 @@ void AGtHeroCharacter::OnCharacterStatusTagChanged(const FGameplayTag& StatusTag
 		JumpCount = 0;
 	}
 }
-
-
-
-

@@ -59,12 +59,6 @@ private:
 	 * MovementComponent 델리게이트 핸들러
 	 */
 	void HandleCapsuleSizeChanged(float HalfHeightAdjust, float ScaledHalfHeightAdjust);
-	
-	/**
-	 * WallRun 관련 함수
-	 */
-	void StartWallRunCheck();
-	void CheckForWallRun();
 
 protected:
 	UPROPERTY()
@@ -84,8 +78,4 @@ protected:
 	
 	int32 JumpCount = 0;
 
-private:
-	
-	// WallRun 조건 확인을 위한 타이머 핸들
-	FTimerHandle WallRunCheckTimer;
 };
