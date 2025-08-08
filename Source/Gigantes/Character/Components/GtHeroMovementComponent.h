@@ -8,6 +8,8 @@
 
 class AGtHeroCharacter;
 
+DECLARE_DELEGATE_OneParam(FOnSlideStateChanged, bool /*bIsSliding*/);
+
 UENUM(BlueprintType)
 enum ECustomMovementMode
 {
@@ -16,6 +18,18 @@ enum ECustomMovementMode
 	CMM_Slide UMETA(DisplayName = "Slide")
 	
 };
+
+UENUM(BlueprintType)
+enum class ESlideEndReason : uint8
+{
+	Normal        UMETA(DisplayName = "Normal"),       // 속도 감소 등 자연스러운 종료
+	Jump          UMETA(DisplayName = "Jump"),         // 점프로 인한 종료  
+	Falling          UMETA(DisplayName = "Jump"),         // 낙하로 인한 종료  
+	CrouchInput   UMETA(DisplayName = "CrouchInput"),  // Crouch 입력으로 인한 종료
+	Collision     UMETA(DisplayName = "Collision")     // 충돌로 인한 종료
+};
+
+DECLARE_DELEGATE_TwoParams(FOnCapsuleSizeChanged, float /*HalfHeightAdjust*/, float /*ScaledHalfHeightAdjust*/);
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class GIGANTES_API UGtHeroMovementComponent : public UCharacterMovementComponent
@@ -31,8 +45,11 @@ public:
 	void EndWallRun(const FHitResult* FloorHitOption = nullptr);
 
 	void StartSlide();
-	void EndSlide();
+	void EndSlide(ESlideEndReason Reason = ESlideEndReason::Normal);
 	bool CanSlide() const;
+	bool CanStandUp() const;
+
+	uint8 GetCustomMovementMode() const { return CustomMovementMode; }
 	
 	UFUNCTION(BlueprintPure, Category = "Movement|WallRun")
 	FVector GetWallRunNormal() const { return WallRunNormal; }
@@ -42,6 +59,8 @@ public:
 
 	void InvalidateGroundInfo();
 
+	FOnCapsuleSizeChanged OnCapsuleSizeChanged;
+	
 protected:
 	virtual void OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode) override;
 	virtual void PhysCustom(float DeltaTime, int32 Iterations) override;
@@ -49,10 +68,10 @@ protected:
 	void PhysWallRun(float DeltaTime, int32 Iterations);
 	void PhysSlide(float DeltaTime, int32 Iterations);
 
-	bool CanStandUp() const;
-	bool GetFloorHit(FHitResult& OutHit) const;
-	
 private:
+	void SetCapsuleSize(float TargetHalfHeight);
+	void RestoreCapsuleSize();
+	void TransitionToCrouch();
 	float CalculateGroundDistance() const;
 	void CacheInitialValues();
 	
@@ -126,6 +145,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Movement|Slide")
 	float SlideSteeringStrength = 0.1f;  // 슬라이드 중 조향 강도 (0~1)
 
+	// Standing 캡슐 높이 캐싱
+	float StandingCapsuleHalfHeight = 96.0f;
+	
 protected:
 	UPROPERTY()
 	TObjectPtr<AGtHeroCharacter> HeroCharacterOwner   =  nullptr;
@@ -139,7 +161,7 @@ private:
 	// 캐싱된 Ground Distance 정보
 	float CachedGroundDistance = 0.0f;
 	uint32 CachedGroundInfoFrame = 0;
-
-	// Standing 캡슐 높이 캐싱
-	float StandingCapsuleHalfHeight = 96.0f;
+	
+	float DefaultGroundFriction;
+	float DefaultBrakingDecelerationWalking;
 };

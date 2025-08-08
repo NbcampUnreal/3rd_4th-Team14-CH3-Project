@@ -31,13 +31,7 @@ public:
 	virtual void OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 	virtual void OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 	virtual bool CanCrouch() const override;
-
-	/**
-	 * Slide 관련 함수들
-	 */
-	virtual void OnStartSlide(float HalfHeightAdjust, float ScaledHalfHeightAdjust);
-	virtual void OnEndSlide(float HalfHeightAdjust, float ScaledHalfHeightAdjust);
-
+	
 	USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	UGtHeroMovementComponent* GetHeroMovementComponent() const { return HeroMovementComponent; }
 
@@ -58,9 +52,13 @@ protected:
 
 	bool ShouldStartSlide() const;
 	void StartSlide();
-	void EndSlide();
-	
+
 private:
+
+	/**
+	 * MovementComponent 델리게이트 핸들러
+	 */
+	void HandleCapsuleSizeChanged(float HalfHeightAdjust, float ScaledHalfHeightAdjust);
 	
 	/**
 	 * WallRun 관련 함수

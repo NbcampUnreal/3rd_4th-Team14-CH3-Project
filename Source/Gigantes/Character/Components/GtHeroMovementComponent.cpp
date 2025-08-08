@@ -36,6 +36,24 @@ void UGtHeroMovementComponent::CacheInitialValues()
 void UGtHeroMovementComponent::OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode)
 {
     Super::OnMovementModeChanged(PreviousMovementMode, PreviousCustomMode);
+    
+    // 슬라이딩 시작 시: 기본 값 저장 후 슬라이드 값으로 변경
+    // TODO: 어차피 Custom 모드로 변경해서 PhysCustom을 호출하므로 굳이 필요 없을 것 같음
+    if (MovementMode == MOVE_Custom && CustomMovementMode == CMM_Slide)
+    {
+        DefaultGroundFriction = GroundFriction;
+        DefaultBrakingDecelerationWalking = BrakingDecelerationWalking;
+
+        GroundFriction = 0.f; // PhysSlide에서 수동으로 감속을 처리하므로 기본 마찰은 0으로
+        BrakingDecelerationWalking = SlideBrakingDeceleration;
+    }
+    // 슬라이딩 종료 시: 저장했던 기본 값으로 복원
+    else if (PreviousMovementMode == MOVE_Custom && PreviousCustomMode == CMM_Slide)
+    {
+        GroundFriction = DefaultGroundFriction;
+        BrakingDecelerationWalking = DefaultBrakingDecelerationWalking;
+    }
+    
     InvalidateGroundInfo();
 }
 
@@ -133,38 +151,10 @@ void UGtHeroMovementComponent::StartSlide()
     if (!CharacterOwner || !CharacterOwner->GetCapsuleComponent())
         return;
     
-    UCapsuleComponent* CapsuleComp = CharacterOwner->GetCapsuleComponent();
-    
-    // Crouch와 동일한 캡슐 크기 조정 로직
-    const float ComponentScale = CapsuleComp->GetShapeScale();
-    const float OldUnscaledHalfHeight = CapsuleComp->GetUnscaledCapsuleHalfHeight();
-    const float OldUnscaledRadius = CapsuleComp->GetUnscaledCapsuleRadius();
-    
-    // 크기 변경
-    CapsuleComp->SetCapsuleSize(OldUnscaledRadius, CrouchedHalfHeight);
-    float HalfHeightAdjust = (OldUnscaledHalfHeight - CrouchedHalfHeight);
-    float ScaledHalfHeightAdjust = HalfHeightAdjust * ComponentScale;
-    
-    // 캡슐 위치 조정 (Crouch와 동일)
-    if (HalfHeightAdjust > 0.0f)
-    {
-        UpdatedComponent->MoveComponent(
-            FVector(0.f, 0.f, -ScaledHalfHeightAdjust), 
-            UpdatedComponent->GetComponentQuat(), 
-            true, nullptr, 
-            EMoveComponentFlags::MOVECOMP_NoFlags, 
-            ETeleportType::TeleportPhysics);
-    }
-    
-    // HeroCharacter의 슬라이드 콜백 호출 (메쉬 조정)
-    if (HeroCharacterOwner)
-    {
-        HeroCharacterOwner->OnStartSlide(HalfHeightAdjust, ScaledHalfHeightAdjust);
-    }
-    
-    // Movement Mode 설정
+    SetCapsuleSize(CrouchedHalfHeight);
+
     SetMovementMode(MOVE_Custom, CMM_Slide);
-    
+
     // 속도 부스트
     Velocity *= SlideBoostMultiplier;
     
@@ -174,62 +164,50 @@ void UGtHeroMovementComponent::StartSlide()
     {
         Velocity = Velocity.GetSafeNormal2D() * SlideMaxSpeed;
     }
+
 }
 
-void UGtHeroMovementComponent::EndSlide()
+void UGtHeroMovementComponent::EndSlide(ESlideEndReason Reason)
 {
     if (!CharacterOwner || !CharacterOwner->GetCapsuleComponent())
         return;
     
-    UCapsuleComponent* CapsuleComp = CharacterOwner->GetCapsuleComponent();
-    
     // 현재 속도 보존
     FVector PreSlideVelocity = Velocity;
     
-    // 일어설 수 있는지 체크
-    bool bCanStand = CanStandUp();
+    // Reason에 따른 처리
+    switch(Reason)
+    {
+    case ESlideEndReason::Jump:
+    case ESlideEndReason::Falling:
+        {
+            // 공중에 있는 경우 무조건 캡슐 복원 시도
+            RestoreCapsuleSize();
+            SetMovementMode(MOVE_Falling);
+            break;
+        }
+
+    case ESlideEndReason::CrouchInput:
+    case ESlideEndReason::Normal:
+    case ESlideEndReason::Collision:
+        {
+            if (CanStandUp())
+            {
+                // 일어설 수 있으면 캡슐 복원
+                RestoreCapsuleSize();
+                SetMovementMode(MOVE_Walking);
+            }
+            else
+            {
+                // 일어설 수 없으면 Crouch 상태로 전환
+                TransitionToCrouch();
+                SetMovementMode(MOVE_Walking);
+            }
+            break;
+        }
+    }
     
-    if (bCanStand)
-    {
-        // 캡슐 크기 복원 (Crouch 종료와 동일)
-        const float ComponentScale = CapsuleComp->GetShapeScale();
-        const float OldUnscaledHalfHeight = CapsuleComp->GetUnscaledCapsuleHalfHeight();
-        const float TargetHalfHeight = StandingCapsuleHalfHeight;
-        
-        CapsuleComp->SetCapsuleHalfHeight(TargetHalfHeight);
-        float HalfHeightAdjust = (TargetHalfHeight - OldUnscaledHalfHeight);
-        float ScaledHalfHeightAdjust = HalfHeightAdjust * ComponentScale;
-        
-        // 캡슐 위치 조정
-        UpdatedComponent->MoveComponent(
-            FVector(0.f, 0.f, ScaledHalfHeightAdjust), 
-            UpdatedComponent->GetComponentQuat(), 
-            true, nullptr, 
-            EMoveComponentFlags::MOVECOMP_NoFlags, 
-            ETeleportType::TeleportPhysics);
-        
-        // HeroCharacter의 슬라이드 종료 콜백
-        if (HeroCharacterOwner)
-        {
-            HeroCharacterOwner->OnEndSlide(HalfHeightAdjust, ScaledHalfHeightAdjust);
-        }
-        
-        // Movement Mode 복원
-        SetMovementMode(MOVE_Walking);
-    }
-    else
-    {
-
-        if (HeroCharacterOwner)
-        {
-            HeroCharacterOwner->AddStatusTag(GtGameplayTags::Status_Action_Crouching);
-
-            HeroCharacterOwner->bIsCrouched =true;
-            bWantsToCrouch = true;
-
-        }
-        SetMovementMode(MOVE_Walking);
-    }
+    // 속도 복원
     Velocity = PreSlideVelocity;
 }
 
@@ -428,7 +406,7 @@ void UGtHeroMovementComponent::PhysSlide(float DeltaTime, int32 Iterations)
 {
     if (!CharacterOwner)
     {
-        EndSlide();
+        EndSlide(ESlideEndReason::Normal);
         return;
     }
     
@@ -440,20 +418,18 @@ void UGtHeroMovementComponent::PhysSlide(float DeltaTime, int32 Iterations)
     // 이제 CurrentFloor 사용 가능
     if (!CurrentFloor.IsWalkableFloor())
     {
-        // 진짜 바닥이 없을 때만 종료
-        SetMovementMode(MOVE_Falling);
-        EndSlide();
+        EndSlide(ESlideEndReason::Falling);
         return;
     }
+
+    // 현재 속도
+    float CurrentSpeed = Velocity.Size2D();
+    FVector CurrentDirection = Velocity.GetSafeNormal2D();
     
     // 바닥 정보 사용
     const FVector FloorNormal = CurrentFloor.HitResult.ImpactNormal;
     const float SlopeAngle = FMath::RadiansToDegrees(
         FMath::Acos(FVector::DotProduct(FloorNormal, FVector::UpVector)));
-    
-    // 현재 속도
-    float CurrentSpeed = Velocity.Size2D();
-    FVector CurrentDirection = Velocity.GetSafeNormal2D();
     
     // 경사면 처리
     if (SlopeAngle > 5.0f && SlopeAngle < GetWalkableFloorAngle())
@@ -481,7 +457,7 @@ void UGtHeroMovementComponent::PhysSlide(float DeltaTime, int32 Iterations)
         // 최소 속도 체크
         if (CurrentSpeed < SlideMinExitSpeed)
         {
-            EndSlide();
+            EndSlide(ESlideEndReason::Normal);
             return;
         }
     }
@@ -489,7 +465,7 @@ void UGtHeroMovementComponent::PhysSlide(float DeltaTime, int32 Iterations)
     // 속도 제한
     CurrentSpeed = FMath::Clamp(CurrentSpeed, 0.0f, SlideMaxSpeed);
     
-    // 입력에 의한 조향
+    // 입력에 의한 조향 (TODO: 조향 대신 캐릭터와 Input의 방향을 비교하여 속도 계산 어떻게 할지 고민)
     const FVector InputVector = CharacterOwner->GetLastMovementInputVector();
     if (!InputVector.IsNearlyZero())
     {
@@ -513,7 +489,7 @@ void UGtHeroMovementComponent::PhysSlide(float DeltaTime, int32 Iterations)
         // 정면 충돌
         if (FVector::DotProduct(CurrentDirection, Hit.Normal) < -0.7f)
         {
-            EndSlide();
+            EndSlide(ESlideEndReason::Collision);
         }
     }
 }
@@ -565,33 +541,51 @@ bool UGtHeroMovementComponent::CanStandUp() const
     return !bBlocked;
 }
 
-bool UGtHeroMovementComponent::GetFloorHit(FHitResult& OutHit) const
+void UGtHeroMovementComponent::SetCapsuleSize(float TargetHalfHeight)
 {
-    if (!CharacterOwner)
-        return false;
-
-    // 캡슐 바닥에서 아래로 트레이스
-    const UCapsuleComponent* CapsuleComp = CharacterOwner->GetCapsuleComponent();
+    UCapsuleComponent* CapsuleComp = CharacterOwner->GetCapsuleComponent();
     if (!CapsuleComp)
-        return false;
+        return;
     
-    const float CapsuleHalfHeight = CapsuleComp->GetScaledCapsuleHalfHeight();
-    const float TraceDistance = CapsuleHalfHeight + 50.0f;  
+    const float ComponentScale = CapsuleComp->GetShapeScale();
+    const float OldUnscaledHalfHeight = CapsuleComp->GetUnscaledCapsuleHalfHeight();
+    const float OldUnscaledRadius = CapsuleComp->GetUnscaledCapsuleRadius();
     
-    FVector Start = CharacterOwner->GetActorLocation();
-    FVector End = Start - FVector(0, 0, TraceDistance);
+    // 크기 변경
+    CapsuleComp->SetCapsuleSize(OldUnscaledRadius, TargetHalfHeight);
+    float HalfHeightAdjust = (OldUnscaledHalfHeight - TargetHalfHeight);
+    float ScaledHalfHeightAdjust = HalfHeightAdjust * ComponentScale;
     
-    FCollisionQueryParams QueryParams(NAME_None, false, CharacterOwner);
-    QueryParams.bReturnPhysicalMaterial = true;
+    // 캡슐 위치 조정
+    if (FMath::Abs(ScaledHalfHeightAdjust) > 0.01f)
+    {
+        UpdatedComponent->MoveComponent(
+            FVector(0.f, 0.f, -ScaledHalfHeightAdjust), 
+            UpdatedComponent->GetComponentQuat(), 
+            true, nullptr, 
+            EMoveComponentFlags::MOVECOMP_NoFlags, 
+            ETeleportType::TeleportPhysics);
+    }
     
-    // Line trace로 바닥 체크
-    return GetWorld()->LineTraceSingleByChannel(
-        OutHit,
-        Start,
-        End,
-        ECC_Visibility,
-        QueryParams
-    );
+    // 캡슐 크기 변경 델리게이트 호출
+    OnCapsuleSizeChanged.ExecuteIfBound(HalfHeightAdjust, ScaledHalfHeightAdjust);
+}
+
+void UGtHeroMovementComponent::RestoreCapsuleSize()
+{
+    SetCapsuleSize(StandingCapsuleHalfHeight);
+}
+
+void UGtHeroMovementComponent::TransitionToCrouch()
+{
+    // MovementComponent의 Crouch 플래그 설정(다음 업데이트 때 Crouch 상태로 변경)
+    bWantsToCrouch = true;
+    
+    if (HeroCharacterOwner)
+    {
+        // 여기서 캐릭터의 Crouch 상태를 직접 설정하여 crouch 진입에 대한 메쉬 offset 조정 로직 실행 방지
+        HeroCharacterOwner->bIsCrouched = true;
+    }
 }
 
 float UGtHeroMovementComponent::GetGroundDistance()

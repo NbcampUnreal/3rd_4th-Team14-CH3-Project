@@ -35,8 +35,12 @@ void AGtHeroCharacter::BeginPlay()
 	
 	OnStatusTagChanged.AddDynamic(this, &ThisClass::OnCharacterStatusTagChanged);
 	LandedDelegate.AddDynamic(this, &ThisClass::OnLandedCallback);
-}
 
+	if (HeroMovementComponent)
+	{
+		HeroMovementComponent->OnCapsuleSizeChanged.BindUObject(this, &AGtHeroCharacter::HandleCapsuleSizeChanged);
+	}
+}
 
 void AGtHeroCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
@@ -105,21 +109,16 @@ void AGtHeroCharacter::Input_Jump(const FInputActionValue& InputActionValue)
 	// 슬라이딩 중 점프 시 슬라이드 캔슬하고 점프
 	if (HasStatusTag(GtGameplayTags::Status_Action_Sliding))
 	{
-		// EndSlide 호출 전에 점프 가능 여부를 먼저 체크
-		bool bCanPerformJump = CanJump();
-        
-		// 속도를 미리 저장 (EndSlide 후에도 사용하기 위해)
 		const FVector PreSlideVelocity = GetVelocity();
         
-		EndSlide();
-        
-		// 미리 체크한 결과로 점프 실행
-		if (bCanPerformJump)
+		HeroMovementComponent->EndSlide(ESlideEndReason::Jump);
+		
+		if (CanJump())
 		{
 			// 현재 속도 방향으로 추가 추진력
 			FVector JumpBoost = PreSlideVelocity.GetSafeNormal2D() * 200.0f;
 			JumpBoost.Z = GetCharacterMovement()->JumpZVelocity;
-			LaunchCharacter(JumpBoost, true, true);
+			LaunchCharacter(JumpBoost, false, true);
 			JumpCount++;
 		}
 		return;
@@ -129,7 +128,7 @@ void AGtHeroCharacter::Input_Jump(const FInputActionValue& InputActionValue)
 	if (HasStatusTag(GtGameplayTags::Status_Action_Crouching))
 	{
 		UnCrouch();
-		return;  // 점프는 하지 않음
+		return;  
 	}
 	
 	const bool bIsWallRunning = HasStatusTag(GtGameplayTags::Status_Action_WallRunning);
@@ -157,7 +156,7 @@ void AGtHeroCharacter::Input_Crouch(const FInputActionValue& InputActionValue)
 {
 	if (HasStatusTag(GtGameplayTags::Status_Action_Sliding))
 	{
-		EndSlide();
+		HeroMovementComponent->EndSlide(ESlideEndReason::CrouchInput);
 		return;
 	}
 	
@@ -197,6 +196,7 @@ void AGtHeroCharacter::OnJumped_Implementation()
 	Super::OnJumped_Implementation();
 	JumpCount++;
 
+	// TODO : OnMovementModeChanged에서 처리하도록 변경하고 WallRunCoolTime 타이머 도입 해야함
 	StartWallRunCheck();
 }
 
@@ -239,21 +239,9 @@ bool AGtHeroCharacter::ShouldStartSlide() const
 {
 	if (!HeroMovementComponent)
 		return false;
-
-	if (!HeroMovementComponent->IsMovingOnGround())
-		return false;
-
-	const float CurrentSpeed = GetVelocity().Size2D();
-	if (CurrentSpeed < HeroMovementComponent->SlideMinSpeed)  
-		return false;
-
-	if (HasStatusTag(GtGameplayTags::Status_Action_Sliding))
-		return false;
-
-	if (HasStatusTag(GtGameplayTags::Status_Action_Crouching))
-		return false;
-	
-	return true;
+    
+	// MovementComponent에서 슬라이드 가능 여부 확인
+	return HeroMovementComponent->CanSlide();
 }
 
 void AGtHeroCharacter::StartSlide()
@@ -264,57 +252,31 @@ void AGtHeroCharacter::StartSlide()
 	}
 	// MovementComponent에 슬라이드 움직임 시작 요청
 	HeroMovementComponent->StartSlide();
-	
-	AddStatusTag(GtGameplayTags::Status_Action_Sliding);
-	
 }
 
-void AGtHeroCharacter::EndSlide()
+void AGtHeroCharacter::HandleCapsuleSizeChanged(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
 {
-	if (!HeroMovementComponent)
-		return;
-	
-	HeroMovementComponent->EndSlide();
-}
-
-void AGtHeroCharacter::OnStartSlide(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
-{
+	// 메쉬 위치 조정
 	RecalculateBaseEyeHeight();
-
+    
 	const ACharacter* DefaultChar = GetDefault<ACharacter>(GetClass());
 	if (GetMesh() && DefaultChar->GetMesh())
 	{
 		FVector& MeshRelativeLocation = GetMesh()->GetRelativeLocation_DirectMutable();
-		MeshRelativeLocation.Z = DefaultChar->GetMesh()->GetRelativeLocation().Z + HalfHeightAdjust;
+        
+		// 캡슐이 작아지면 메쉬를 위로 올림
+		if (HalfHeightAdjust > 0) // 캡슐이 작아짐
+		{
+			MeshRelativeLocation.Z = DefaultChar->GetMesh()->GetRelativeLocation().Z + HalfHeightAdjust;
+		}
+		// 캡슐을 복구할 때 메쉬를 원래의 캡슐에 대한 상대 좌표로 이동
+		else 
+		{
+			MeshRelativeLocation.Z = DefaultChar->GetMesh()->GetRelativeLocation().Z;
+		}
+        
 		BaseTranslationOffset.Z = MeshRelativeLocation.Z;
 	}
-	else
-	{
-		BaseTranslationOffset.Z = DefaultChar->GetBaseTranslationOffset().Z + HalfHeightAdjust;
-	}
-    
-	// 슬라이드 태그 추가
-	AddStatusTag(GtGameplayTags::Status_Action_Sliding);
-}
-
-void AGtHeroCharacter::OnEndSlide(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
-{
-	RecalculateBaseEyeHeight();
-
-	const ACharacter* DefaultChar = GetDefault<ACharacter>(GetClass());
-	if (GetMesh() && DefaultChar->GetMesh())
-	{
-		FVector& MeshRelativeLocation = GetMesh()->GetRelativeLocation_DirectMutable();
-		MeshRelativeLocation.Z = DefaultChar->GetMesh()->GetRelativeLocation().Z;
-		BaseTranslationOffset.Z = MeshRelativeLocation.Z;
-	}
-	else
-	{
-		BaseTranslationOffset.Z = DefaultChar->GetBaseTranslationOffset().Z;
-	}
-    
-	// 슬라이드 태그 제거
-	RemoveStatusTag(GtGameplayTags::Status_Action_Sliding);
 }
 
 void AGtHeroCharacter::OnLandedCallback(const FHitResult& Hit)
@@ -325,12 +287,28 @@ void AGtHeroCharacter::OnLandedCallback(const FHitResult& Hit)
 
 void AGtHeroCharacter::OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode)
 {
+	// 슬라이드 시작 처리
+	if (GetCharacterMovement()->MovementMode == MOVE_Custom && PreviousCustomMode != CMM_Slide)
+	{
+		if (HeroMovementComponent && HeroMovementComponent->GetCustomMovementMode() == CMM_Slide)
+		{
+			AddStatusTag(GtGameplayTags::Status_Action_Sliding);
+			RemoveStatusTag(GtGameplayTags::Status_Action_Crouching);
+		}
+	}
+    
 	// 슬라이드 종료 처리
 	if (PreviousCustomMode == CMM_Slide)
 	{
 		RemoveStatusTag(GtGameplayTags::Status_Action_Sliding);
+        
+		// Crouch 상태로 전환되었는지 확인
+		if (GetCharacterMovement()->IsCrouching())
+		{
+			AddStatusTag(GtGameplayTags::Status_Action_Crouching);
+		}
 	}
-
+	
 	// 월런 종료 처리
 	if (PreviousCustomMode == CMM_WallRun)
 	{
@@ -343,6 +321,7 @@ void AGtHeroCharacter::OnMovementModeChanged(EMovementMode PrevMovementMode, uin
 		}
 	}
 
+	// TODO : MovementMode == MOVE_Falling 조건만 체크해서 WallRunCheck 시작하도록 하고 WallRunCoolTime 타이머 도입 해야함
 	if (PrevMovementMode == MOVE_Walking && GetCharacterMovement()->MovementMode == MOVE_Falling)
 	{
 		StartWallRunCheck();
