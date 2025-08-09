@@ -32,12 +32,17 @@ public:
 	virtual void OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 	virtual bool CanCrouch() const override;
 
-	/**
-	 * Slide 관련 함수들
-	 */
-	virtual void OnStartSlide(float HalfHeightAdjust, float ScaledHalfHeightAdjust);
-	virtual void OnEndSlide(float HalfHeightAdjust, float ScaledHalfHeightAdjust);
-
+	UFUNCTION(BlueprintCallable, Category = "Character")
+	virtual void Sprint();
+    
+	UFUNCTION(BlueprintCallable, Category = "Character")
+	virtual void UnSprint();
+    
+	virtual bool CanSprint() const;
+	
+	void OnStartSprint();
+	void OnEndSprint();
+	
 	USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	UGtHeroMovementComponent* GetHeroMovementComponent() const { return HeroMovementComponent; }
 
@@ -49,6 +54,9 @@ protected:
 	void Input_Look(const FInputActionValue& InputActionValue);
 	void Input_Jump(const FInputActionValue& InputActionValue);
 	void Input_Crouch(const FInputActionValue& InputActionValue);
+	void Input_SprintStart(const FInputActionValue& InputActionValue);
+	void Input_SprintStop(const FInputActionValue& InputActionValue);
+
 
 	UFUNCTION()
 	void OnLandedCallback(const FHitResult& Hit);
@@ -58,16 +66,18 @@ protected:
 
 	bool ShouldStartSlide() const;
 	void StartSlide();
-	void EndSlide();
 	
 private:
-	
-	/**
-	 * WallRun 관련 함수
-	 */
-	void StartWallRunCheck();
-	void CheckForWallRun();
 
+	/**
+	 * MovementComponent 델리게이트 핸들러
+	 */
+	void HandleCapsuleSizeChanged(float HalfHeightAdjust, float ScaledHalfHeightAdjust);
+
+public:
+	UPROPERTY(BlueprintReadOnly, Category = "Character")
+	uint8 bIsSprinting : 1;
+	
 protected:
 	UPROPERTY()
 	TObjectPtr<UGtHeroMovementComponent> HeroMovementComponent;
@@ -86,8 +96,4 @@ protected:
 	
 	int32 JumpCount = 0;
 
-private:
-	
-	// WallRun 조건 확인을 위한 타이머 핸들
-	FTimerHandle WallRunCheckTimer;
 };

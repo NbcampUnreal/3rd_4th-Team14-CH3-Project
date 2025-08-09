@@ -33,34 +33,80 @@ void UGtHeroMovementComponent::CacheInitialValues()
     }
 }
 
+void UGtHeroMovementComponent::UpdateCharacterStateBeforeMovement(float DeltaSeconds)
+{
+    if (bSprintInputHeld && CanSprintInCurrentState())
+    {
+        bWantsToSprint = true;
+    }
+    else
+    {
+        bWantsToSprint = false;
+    }
+
+    if (HeroCharacterOwner)
+    {
+        // Sprint 시작 체크
+        if (!HeroCharacterOwner->bIsSprinting && bWantsToSprint) // CanSprintInCurrentState() 검사는 위에서 이미 반영됨
+        {
+            Sprint();
+        }
+        // Sprint 종료 체크
+        else if (HeroCharacterOwner->bIsSprinting &&!bWantsToSprint)
+        {
+            UnSprint(ESprintEndReason::Manual);
+        }
+    }
+
+    Super::UpdateCharacterStateBeforeMovement(DeltaSeconds);
+}
+
+float UGtHeroMovementComponent::GetMaxSpeed() const
+{
+    if (HeroCharacterOwner && HeroCharacterOwner->bIsSprinting)
+    {
+        return SprintMaxSpeed;
+    }
+    
+    return Super::GetMaxSpeed();
+}
+
+float UGtHeroMovementComponent::GetMaxAcceleration() const
+{
+    if (HeroCharacterOwner && HeroCharacterOwner->bIsSprinting)
+    {
+        return SprintAcceleration;
+    }
+    
+    return Super::GetMaxAcceleration();
+}
+
 void UGtHeroMovementComponent::OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode)
 {
     Super::OnMovementModeChanged(PreviousMovementMode, PreviousCustomMode);
+    
     InvalidateGroundInfo();
 }
 
-void UGtHeroMovementComponent::TryEnterWallRun(bool& bOutWallRunIsPossible, bool& bOutIsRightWall)
+bool UGtHeroMovementComponent::TryEnterWallRun()
 {
-    bOutWallRunIsPossible = false;
-    bOutIsRightWall = false;
-
     // 1. 공중에 있는가?
     if (!IsFalling())
     {
-        return;
+        return false;
     }
 
     // 2. 충분히 빠른가?
     if (Velocity.Size2D() < WallRunMinSpeed)
     {
-        return;
+        return false;
     }
 
     // 3. 바닥에서 너무 가깝지 않은가? (바닥에서 바로 월런이 되는 현상 방지)
     FHitResult FloorHit;
     if (GetWorld()->LineTraceSingleByChannel(FloorHit, UpdatedComponent->GetComponentLocation(), UpdatedComponent->GetComponentLocation() + FVector::DownVector * WallRunMinHeight, ECC_Visibility))
     {
-        return; // 최소 높이보다 낮은 곳에 바닥이 감지되면 월런 불가
+        return false; // 최소 높이보다 낮은 곳에 바닥이 감지되면 월런 불가
     }
 
     // 4. 좌/우 벽 감지
@@ -74,7 +120,10 @@ void UGtHeroMovementComponent::TryEnterWallRun(bool& bOutWallRunIsPossible, bool
     QueryParams.AddIgnoredActor(GetOwner());
 
     const FCollisionShape ProbeShape = FCollisionShape::MakeSphere(20.f);
-
+    
+    bool bWallRunPossible = false;
+    bool bIsRightWallLocal = false;
+    
     // 오른쪽 벽 감지
     if (GetWorld()->SweepSingleByChannel(WallHit,Start,Start + Right * 75.f,FQuat::Identity,ECC_Visibility,ProbeShape,QueryParams))
     {
@@ -83,88 +132,66 @@ void UGtHeroMovementComponent::TryEnterWallRun(bool& bOutWallRunIsPossible, bool
             if (FVector::DotProduct(Forward, -WallHit.ImpactNormal) > 0.1f)
             {
                 WallRunNormal = WallHit.ImpactNormal;
-                bOutIsRightWall = true;
-                bOutWallRunIsPossible = true;
-                return;
+                bIsRightWallLocal = true;
+                bWallRunPossible  = true;
             }
         }
     }
-
     // 왼쪽 벽 감지
-    if (GetWorld()->SweepSingleByChannel(WallHit,Start,Start + Left * 75.f,FQuat::Identity,ECC_Visibility,ProbeShape,QueryParams))
+    else if (GetWorld()->SweepSingleByChannel(WallHit,Start,Start + Left * 75.f,FQuat::Identity,ECC_Visibility,ProbeShape,QueryParams))
     {
         if (FMath::Abs(WallHit.ImpactNormal.Z) < 0.3f)
         {
             if (FVector::DotProduct(Forward, -WallHit.ImpactNormal) > 0.1f)
             {
                 WallRunNormal = WallHit.ImpactNormal;
-                bOutIsRightWall = false;
-                bOutWallRunIsPossible = true;
-                return;
+                bIsRightWallLocal = false;
+                bWallRunPossible  = true;
             }
         }
     }
+
+    bIsRightWall = bIsRightWallLocal;
+    
+    if (bWallRunPossible)
+    {
+        return true;
+    }
+    
+    return false;
 }
 
-void UGtHeroMovementComponent::EndWallRun(const FHitResult* FloorHitOption)
+void UGtHeroMovementComponent::StartWallRun(bool bIsRightWallParam)
 {
-    // 월런 내부 상태 정리
+    bIsRightWall = bIsRightWallParam;
+    bOrientRotationToMovement = false;
+    Velocity.Z = 0;
+    SetMovementMode(MOVE_Custom, CMM_WallRun);
+}
+
+void UGtHeroMovementComponent::EndWallRun()
+{
     WallRunNormal = FVector::ZeroVector;
-
-    // 바닥 히트가 있고 걷기 가능한 표면이면 → 걷기
-    if (FloorHitOption && IsWalkable(*FloorHitOption))
-    {
-        SetMovementMode(MOVE_Walking);
-        StopMovementImmediately();
-        if (CharacterOwner)
-        {
-            // 점프카운트 리셋등 델리게이트로 처리
-            CharacterOwner->Landed(*FloorHitOption);
-        }
-        return;
-    }
-
-    // 그 외(벽 소실/속도 저하/시선 이탈/점프 이탈 등) → 낙하
+    bOrientRotationToMovement = true;
     SetMovementMode(MOVE_Falling);
+    WallRunEndTime = GetWorld()->GetTimeSeconds();
 }
 
 void UGtHeroMovementComponent::StartSlide()
 {
     if (!CharacterOwner || !CharacterOwner->GetCapsuleComponent())
         return;
-    
-    UCapsuleComponent* CapsuleComp = CharacterOwner->GetCapsuleComponent();
-    
-    // Crouch와 동일한 캡슐 크기 조정 로직
-    const float ComponentScale = CapsuleComp->GetShapeScale();
-    const float OldUnscaledHalfHeight = CapsuleComp->GetUnscaledCapsuleHalfHeight();
-    const float OldUnscaledRadius = CapsuleComp->GetUnscaledCapsuleRadius();
-    
-    // 크기 변경
-    CapsuleComp->SetCapsuleSize(OldUnscaledRadius, CrouchedHalfHeight);
-    float HalfHeightAdjust = (OldUnscaledHalfHeight - CrouchedHalfHeight);
-    float ScaledHalfHeightAdjust = HalfHeightAdjust * ComponentScale;
-    
-    // 캡슐 위치 조정 (Crouch와 동일)
-    if (HalfHeightAdjust > 0.0f)
+
+    if (HeroCharacterOwner && HeroCharacterOwner->bIsSprinting)
     {
-        UpdatedComponent->MoveComponent(
-            FVector(0.f, 0.f, -ScaledHalfHeightAdjust), 
-            UpdatedComponent->GetComponentQuat(), 
-            true, nullptr, 
-            EMoveComponentFlags::MOVECOMP_NoFlags, 
-            ETeleportType::TeleportPhysics);
+        // Sprint 실행만 종료, 입력 상태(bSprintInputHeld)는 유지
+        HeroCharacterOwner->bIsSprinting = false;
+        HeroCharacterOwner->OnEndSprint();
     }
     
-    // HeroCharacter의 슬라이드 콜백 호출 (메쉬 조정)
-    if (HeroCharacterOwner)
-    {
-        HeroCharacterOwner->OnStartSlide(HalfHeightAdjust, ScaledHalfHeightAdjust);
-    }
-    
-    // Movement Mode 설정
+    SetCapsuleSize(CrouchedHalfHeight);
     SetMovementMode(MOVE_Custom, CMM_Slide);
-    
+
     // 속도 부스트
     Velocity *= SlideBoostMultiplier;
     
@@ -174,62 +201,51 @@ void UGtHeroMovementComponent::StartSlide()
     {
         Velocity = Velocity.GetSafeNormal2D() * SlideMaxSpeed;
     }
+
 }
 
-void UGtHeroMovementComponent::EndSlide()
+void UGtHeroMovementComponent::EndSlide(ESlideEndReason Reason)
 {
     if (!CharacterOwner || !CharacterOwner->GetCapsuleComponent())
         return;
     
-    UCapsuleComponent* CapsuleComp = CharacterOwner->GetCapsuleComponent();
-    
     // 현재 속도 보존
     FVector PreSlideVelocity = Velocity;
     
-    // 일어설 수 있는지 체크
-    bool bCanStand = CanStandUp();
+    // Reason에 따른 처리
+    switch(Reason)
+    {
+    case ESlideEndReason::Jump:
+    case ESlideEndReason::Falling:
+        {
+            // 공중에 있는 경우 무조건 캡슐 복원 시도
+            RestoreCapsuleSize();
+            SetMovementMode(MOVE_Falling);
+            break;
+        }
+
+    case ESlideEndReason::CrouchInput:
+    case ESlideEndReason::BrakeInput:
+    case ESlideEndReason::Normal:
+    case ESlideEndReason::Collision:
+        {
+            if (false /*/CanStandUp() 조작감 테스트를 통해 활성화 유무 고려 중*/)
+            {
+                // 일어설 수 있으면 캡슐 복원
+                RestoreCapsuleSize();
+                SetMovementMode(MOVE_Walking);
+            }
+            else
+            {
+                // 일어설 수 없으면 Crouch 상태로 전환
+                TransitionToCrouch();
+                SetMovementMode(MOVE_Walking);
+            }
+            break;
+        }
+    }
     
-    if (bCanStand)
-    {
-        // 캡슐 크기 복원 (Crouch 종료와 동일)
-        const float ComponentScale = CapsuleComp->GetShapeScale();
-        const float OldUnscaledHalfHeight = CapsuleComp->GetUnscaledCapsuleHalfHeight();
-        const float TargetHalfHeight = StandingCapsuleHalfHeight;
-        
-        CapsuleComp->SetCapsuleHalfHeight(TargetHalfHeight);
-        float HalfHeightAdjust = (TargetHalfHeight - OldUnscaledHalfHeight);
-        float ScaledHalfHeightAdjust = HalfHeightAdjust * ComponentScale;
-        
-        // 캡슐 위치 조정
-        UpdatedComponent->MoveComponent(
-            FVector(0.f, 0.f, ScaledHalfHeightAdjust), 
-            UpdatedComponent->GetComponentQuat(), 
-            true, nullptr, 
-            EMoveComponentFlags::MOVECOMP_NoFlags, 
-            ETeleportType::TeleportPhysics);
-        
-        // HeroCharacter의 슬라이드 종료 콜백
-        if (HeroCharacterOwner)
-        {
-            HeroCharacterOwner->OnEndSlide(HalfHeightAdjust, ScaledHalfHeightAdjust);
-        }
-        
-        // Movement Mode 복원
-        SetMovementMode(MOVE_Walking);
-    }
-    else
-    {
-
-        if (HeroCharacterOwner)
-        {
-            HeroCharacterOwner->AddStatusTag(GtGameplayTags::Status_Action_Crouching);
-
-            HeroCharacterOwner->bIsCrouched =true;
-            bWantsToCrouch = true;
-
-        }
-        SetMovementMode(MOVE_Walking);
-    }
+    // 속도 복원
     Velocity = PreSlideVelocity;
 }
 
@@ -259,13 +275,20 @@ void UGtHeroMovementComponent::PhysCustom(float DeltaTime, int32 Iterations)
     }
 }
 
+void UGtHeroMovementComponent::PhysFalling(float DeltaTime, int32 Iterations)
+{
+    Super::PhysFalling(DeltaTime, Iterations);
+
+    if (ShouldCheckForWallRun())
+    {
+        CheckForWallRun();
+    }
+}
+
 void UGtHeroMovementComponent::PhysWallRun(float DeltaTime, int32 Iterations)
 {
-    // 벽 위치 확인 및 기본 설정
-    // DotProduct가 음수면 오른쪽 벽, 양수면 왼쪽 벽
-    const bool bIsOnRightWall = FVector::DotProduct(WallRunNormal, UpdatedComponent->GetRightVector()) < 0;
     const FVector TraceStart = UpdatedComponent->GetComponentLocation();
-    const FVector TraceDirection = bIsOnRightWall ? UpdatedComponent->GetRightVector() : -UpdatedComponent->GetRightVector();
+    const FVector TraceDirection = bIsRightWall ? UpdatedComponent->GetRightVector() : -UpdatedComponent->GetRightVector();
 
     const FCollisionShape ProbeShape = FCollisionShape::MakeSphere(20.f);
     FCollisionQueryParams QueryParams;
@@ -317,9 +340,6 @@ void UGtHeroMovementComponent::PhysWallRun(float DeltaTime, int32 Iterations)
             if (AGtPlayerCameraManager* CameraManager = Cast<AGtPlayerCameraManager>(PC->PlayerCameraManager))
             {
                 const float CurrentAimOffsetYaw = CameraManager->GetAimOffsetYaw();
-                
-                // 월런 중 시선 체크 로직
-                const bool bIsRightWall = FVector::DotProduct(WallRunNormal, UpdatedComponent->GetRightVector()) < 0;
                 
                 // 벽을 직접 바라보면 월런 종료
                 if (bIsRightWall)
@@ -428,7 +448,7 @@ void UGtHeroMovementComponent::PhysSlide(float DeltaTime, int32 Iterations)
 {
     if (!CharacterOwner)
     {
-        EndSlide();
+        EndSlide(ESlideEndReason::Normal);
         return;
     }
     
@@ -440,20 +460,59 @@ void UGtHeroMovementComponent::PhysSlide(float DeltaTime, int32 Iterations)
     // 이제 CurrentFloor 사용 가능
     if (!CurrentFloor.IsWalkableFloor())
     {
-        // 진짜 바닥이 없을 때만 종료
-        SetMovementMode(MOVE_Falling);
-        EndSlide();
+        EndSlide(ESlideEndReason::Falling);
         return;
+    }
+
+    // 현재 속도
+    float CurrentSpeed = Velocity.Size2D();
+    FVector CurrentDirection = Velocity.GetSafeNormal2D();
+    
+    const FVector InputVector = CharacterOwner->GetLastMovementInputVector();
+    if (!InputVector.IsNearlyZero())
+    {
+        FVector InputDir = InputVector.GetSafeNormal();
+        float InputAlignment = FVector::DotProduct(CurrentDirection, InputDir);
+    
+        // 전방 콘 범위 체크
+        const float ForwardConeThreshold = FMath::Cos(FMath::DegreesToRadians(SlideForwardConeAngle));
+    
+        if (InputAlignment < ForwardConeThreshold)
+        {
+            // 후방/측면 입력 - 슬라이드 종료
+            EndSlide(ESlideEndReason::BrakeInput);
+            return;
+        }
+        else if (SlideSteeringResponsiveness > 0.01f)  // 조향이 활성화된 경우만
+        {
+            // 전방 입력 - 조향 적용
+            float AngleDiff = FMath::Acos(InputAlignment);
+        
+            // 최대 조향 속도 - 프로퍼티와 반응성 적용
+            const float AdjustedSteeringRate = SlideMaxSteeringRate * SlideSteeringResponsiveness;
+            const float MaxSteeringRadians = FMath::DegreesToRadians(AdjustedSteeringRate) * DeltaTime;
+        
+            // 실제 적용할 조향량 계산
+            float SteeringAmount = FMath::Min(AngleDiff, MaxSteeringRadians);
+        
+            // 조향 적용
+            if (SteeringAmount > 0.001f)
+            {
+                // 회전 방향 결정 (외적으로 좌/우 판단)
+                FVector CrossProduct = FVector::CrossProduct(CurrentDirection, InputDir);
+                float RotationDirection = FMath::Sign(CrossProduct.Z);
+            
+                // 쿼터니언으로 회전 적용
+                FQuat RotationQuat(FVector::UpVector, SteeringAmount * RotationDirection);
+                CurrentDirection = RotationQuat.RotateVector(CurrentDirection);
+            }
+        }
     }
     
     // 바닥 정보 사용
     const FVector FloorNormal = CurrentFloor.HitResult.ImpactNormal;
     const float SlopeAngle = FMath::RadiansToDegrees(
         FMath::Acos(FVector::DotProduct(FloorNormal, FVector::UpVector)));
-    
-    // 현재 속도
-    float CurrentSpeed = Velocity.Size2D();
-    FVector CurrentDirection = Velocity.GetSafeNormal2D();
     
     // 경사면 처리
     if (SlopeAngle > 5.0f && SlopeAngle < GetWalkableFloorAngle())
@@ -481,7 +540,7 @@ void UGtHeroMovementComponent::PhysSlide(float DeltaTime, int32 Iterations)
         // 최소 속도 체크
         if (CurrentSpeed < SlideMinExitSpeed)
         {
-            EndSlide();
+            EndSlide(ESlideEndReason::Normal);
             return;
         }
     }
@@ -489,75 +548,168 @@ void UGtHeroMovementComponent::PhysSlide(float DeltaTime, int32 Iterations)
     // 속도 제한
     CurrentSpeed = FMath::Clamp(CurrentSpeed, 0.0f, SlideMaxSpeed);
     
-    // 입력에 의한 조향
-    const FVector InputVector = CharacterOwner->GetLastMovementInputVector();
-    if (!InputVector.IsNearlyZero())
-    {
-        FVector InputDir = InputVector.GetSafeNormal();
-        CurrentDirection = (CurrentDirection + InputDir * SlideSteeringStrength).GetSafeNormal();
-    }
-    
     // 속도 설정
     Velocity = CurrentDirection * CurrentSpeed;
     Velocity.Z = 0;
-    
-    // 이동 적용
+
+    // 이동 적용 전 속도 저장
+    const FVector PreMoveVelocity = Velocity;
     const FVector Delta = Velocity * DeltaTime;
     FHitResult Hit;
     SafeMoveUpdatedComponent(Delta, UpdatedComponent->GetComponentQuat(), true, Hit);
     
     if (Hit.bBlockingHit)
     {
-        SlideAlongSurface(Delta, 1.f - Hit.Time, Hit.Normal, Hit, true);
+        // 충돌 각도 계산 (이동 방향 vs 충돌면)
+        const FVector MoveDirection = Delta.GetSafeNormal();
+        const float ImpactAngle = FVector::DotProduct(MoveDirection, Hit.Normal);
         
-        // 정면 충돌
-        if (FVector::DotProduct(CurrentDirection, Hit.Normal) < -0.7f)
+        // 정면 충돌 판정
+        const float FrontCollisionThreshold = -0.5f;  // cos(120도) = -0.5
+        
+        if (ImpactAngle < FrontCollisionThreshold)
         {
-            EndSlide();
+            // 정면 충돌 - 즉시 종료
+            EndSlide(ESlideEndReason::Collision);
+            
+            // 충돌 시 속도 감소
+            Velocity = PreMoveVelocity * 0.3f;  // 30%로 감속
+        }
+        else
+        {
+            // 측면 충돌 - 미끄러짐
+            SlideAlongSurface(Delta, 1.f - Hit.Time, Hit.Normal, Hit, true);
+            
+            // 미끄러진 후 속도가 너무 낮아졌는지 체크
+            if (Velocity.Size2D() < SlideMinExitSpeed * 0.5f)
+            {
+                EndSlide(ESlideEndReason::Collision);
+            }
         }
     }
+}
+
+void UGtHeroMovementComponent::Sprint()
+{
+    if (!HeroCharacterOwner)
+        return;
+
+    HeroCharacterOwner->bIsSprinting = true;
+    HeroCharacterOwner->OnStartSprint();
+}
+
+void UGtHeroMovementComponent::UnSprint(ESprintEndReason Reason)
+{
+    if (!HeroCharacterOwner)
+        return;
+    
+    // 종료 이유별 처리
+    switch(Reason)
+    {
+    case ESprintEndReason::WrongDirection:
+        Velocity *= 0.8f;  // 방향 전환 시 감속
+        break;
+            
+    case ESprintEndReason::Collision:
+        Velocity *= 0.5f;  // 충돌 시 더 많은 감속
+        break;
+    default:
+        break;
+    }
+
+    HeroCharacterOwner->bIsSprinting = false;
+    HeroCharacterOwner->OnEndSprint();
+}
+
+bool UGtHeroMovementComponent::CanSprintInCurrentState() const
+{
+    if (IsCrouching() || IsSliding() || IsWallRunning())
+        return false;
+
+    // Sprint 상태였으면 공중에서도 우선 조건 통과 (착지 시 자동 재개를 위함)
+    // 새로 시작할 때만 지상 체크
+    if (!IsMovingOnGround())
+    {
+        // 이미 Sprint 중이었다면 유지 가능
+        if (HeroCharacterOwner && HeroCharacterOwner->bIsSprinting)
+            return true;
+        
+        return false;  // 새로 시작은 불가
+    }
+
+    // 최소 속도 체크
+    if (!HeroCharacterOwner->bIsSprinting && Velocity.Size2D() < SprintMinSpeed)
+    {
+        return false;
+    }
+    
+    const FVector InputVector = CharacterOwner->GetLastMovementInputVector();
+    if (InputVector.IsNearlyZero())
+    {
+        return false;
+    }
+
+    // 플레이어의 현재 카메라 방향과 입력 방향에 대해 체크
+    const FRotator CameraRotation = CharacterOwner->GetControlRotation();
+    const FRotator YawRotation(0, CameraRotation.Yaw, 0);
+    const FVector CameraForward = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+    const FVector MovementDirection = InputVector.GetSafeNormal();
+
+    const float CameraAlignment = FVector::DotProduct(CameraForward, MovementDirection);
+    const float CameraThreshold = FMath::Cos(FMath::DegreesToRadians(SprintForwardAngleThreshold)); // 45도
+
+    if (CameraAlignment < CameraThreshold)
+    {
+        // 플레이어의 입력이 카메라 기준 전방이 아니면 질주 불가
+        return false;
+    }
+
+    // 새로 Sprint 시작시 캐릭터가 이동 방향을 바라보는지 체크
+    if (HeroCharacterOwner &&!HeroCharacterOwner->bIsSprinting)
+    {
+        const FVector ActorForward = CharacterOwner->GetActorForwardVector();
+        const float CharacterAlignment = FVector::DotProduct(ActorForward, MovementDirection);
+
+        // 캐릭터가 이동하려는 방향을 아직 바라보고 있지 않다면
+        // 먼저 회전해야 하므로 sprint 불가
+        if (CharacterAlignment < 0.8f)
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 bool UGtHeroMovementComponent::CanStandUp() const
 {
     if (!CharacterOwner)
-    {
         return false;
-    }
+
+    if (!bWantsToCrouch && !CharacterOwner->bIsCrouched)
+        return true;
     
-    // 현재 웅크린 상태의 캡슐 정보
-    UCapsuleComponent* CapsuleComp = CharacterOwner->GetCapsuleComponent();
-    if (!CapsuleComp)
-    {
-        return false;
-    }
+    // 일어설 수 있는 공간이 있는지 체크
+    const float CurrentCrouchedHalfHeight = CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+    const float StandingHalfHeight = StandingCapsuleHalfHeight * CharacterOwner->GetCapsuleComponent()->GetShapeScale();
     
-    const float CurrentCapsuleRadius = CapsuleComp->GetScaledCapsuleRadius();
-    const float CurrentCapsuleHalfHeight = CapsuleComp->GetScaledCapsuleHalfHeight();
+    const FVector PawnLocation = CharacterOwner->GetActorLocation();
+    const float HeightAdjust = StandingHalfHeight - CurrentCrouchedHalfHeight;
     
-    // 일어섰을 때의 캡슐로 체크
-    const float StandingHalfHeight = StandingCapsuleHalfHeight;
-    const float HeightDifference = StandingHalfHeight - CurrentCapsuleHalfHeight;
-    
-    // 위쪽으로 체크
-    FVector Start = CharacterOwner->GetActorLocation();
-    FVector End = Start + FVector(0, 0, HeightDifference * 2.0f);
+    // 위쪽 공간 체크
+    FVector TraceStart = PawnLocation;
+    FVector TraceEnd = PawnLocation + FVector(0.f, 0.f, HeightAdjust * 2.0f);
     
     FCollisionQueryParams QueryParams(NAME_None, false, CharacterOwner);
     FCollisionResponseParams ResponseParam;
     InitCollisionParams(QueryParams, ResponseParam);
-    
-    // 캡슐 모양으로 체크
-    FCollisionShape CapsuleShape = FCollisionShape::MakeCapsule(CurrentCapsuleRadius, StandingHalfHeight);
-    
+
     FHitResult Hit;
-    bool bBlocked = GetWorld()->SweepSingleByChannel(
+    bool bBlocked = GetWorld()->LineTraceSingleByChannel(
         Hit,
-        Start,
-        Start + FVector(0, 0, 0.1f),  // 거의 제자리에서 체크
-        FQuat::Identity,
+        TraceStart,
+        TraceEnd,
         UpdatedComponent->GetCollisionObjectType(),
-        CapsuleShape,
         QueryParams,
         ResponseParam
     );
@@ -565,33 +717,78 @@ bool UGtHeroMovementComponent::CanStandUp() const
     return !bBlocked;
 }
 
-bool UGtHeroMovementComponent::GetFloorHit(FHitResult& OutHit) const
+bool UGtHeroMovementComponent::ShouldCheckForWallRun() const
 {
-    if (!CharacterOwner)
+    if (IsWallRunning())
         return false;
+    
+    // 월런 종료시 쿨다운 체크
+    const float CurrentTime = GetWorld()->GetTimeSeconds();
+    if (CurrentTime - WallRunEndTime < WallRunCooldownTime)
+        return false;
+    
+    // 일정 주기 제한
+    if (CurrentTime - LastWallRunCheckTime < WallRunCheckInterval)
+        return false;
+    
+    return true;
+}
 
-    // 캡슐 바닥에서 아래로 트레이스
-    const UCapsuleComponent* CapsuleComp = CharacterOwner->GetCapsuleComponent();
+void UGtHeroMovementComponent::CheckForWallRun()
+{
+    LastWallRunCheckTime = GetWorld()->GetTimeSeconds();
+    
+    if (TryEnterWallRun())
+    {
+        StartWallRun(bIsRightWall);
+    }
+}
+
+void UGtHeroMovementComponent::SetCapsuleSize(float TargetHalfHeight)
+{
+    UCapsuleComponent* CapsuleComp = CharacterOwner->GetCapsuleComponent();
     if (!CapsuleComp)
-        return false;
+        return;
     
-    const float CapsuleHalfHeight = CapsuleComp->GetScaledCapsuleHalfHeight();
-    const float TraceDistance = CapsuleHalfHeight + 50.0f;  
+    const float ComponentScale = CapsuleComp->GetShapeScale();
+    const float OldUnscaledHalfHeight = CapsuleComp->GetUnscaledCapsuleHalfHeight();
+    const float OldUnscaledRadius = CapsuleComp->GetUnscaledCapsuleRadius();
     
-    FVector Start = CharacterOwner->GetActorLocation();
-    FVector End = Start - FVector(0, 0, TraceDistance);
+    // 크기 변경
+    CapsuleComp->SetCapsuleSize(OldUnscaledRadius, TargetHalfHeight);
+    float HalfHeightAdjust = (OldUnscaledHalfHeight - TargetHalfHeight);
+    float ScaledHalfHeightAdjust = HalfHeightAdjust * ComponentScale;
     
-    FCollisionQueryParams QueryParams(NAME_None, false, CharacterOwner);
-    QueryParams.bReturnPhysicalMaterial = true;
+    // 캡슐 위치 조정
+    if (FMath::Abs(ScaledHalfHeightAdjust) > 0.01f)
+    {
+        UpdatedComponent->MoveComponent(
+            FVector(0.f, 0.f, -ScaledHalfHeightAdjust), 
+            UpdatedComponent->GetComponentQuat(), 
+            true, nullptr, 
+            EMoveComponentFlags::MOVECOMP_NoFlags, 
+            ETeleportType::TeleportPhysics);
+    }
     
-    // Line trace로 바닥 체크
-    return GetWorld()->LineTraceSingleByChannel(
-        OutHit,
-        Start,
-        End,
-        ECC_Visibility,
-        QueryParams
-    );
+    // 캡슐 크기 변경 델리게이트 호출
+    OnCapsuleSizeChanged.ExecuteIfBound(HalfHeightAdjust, ScaledHalfHeightAdjust);
+}
+
+void UGtHeroMovementComponent::RestoreCapsuleSize()
+{
+    SetCapsuleSize(StandingCapsuleHalfHeight);
+}
+
+void UGtHeroMovementComponent::TransitionToCrouch()
+{
+    // MovementComponent의 Crouch 플래그 설정(다음 업데이트 때 Crouch 상태로 변경)
+    bWantsToCrouch = true;
+    
+    if (HeroCharacterOwner)
+    {
+        // 여기서 캐릭터의 Crouch 상태를 직접 설정하여 crouch 진입에 대한 메쉬 offset 조정 로직 실행 방지
+        HeroCharacterOwner->bIsCrouched = true;
+    }
 }
 
 float UGtHeroMovementComponent::GetGroundDistance()
@@ -657,9 +854,3 @@ void UGtHeroMovementComponent::InvalidateGroundInfo()
 {
     CachedGroundInfoFrame = 0;
 }
-
-
-
-
-
-

@@ -58,6 +58,7 @@ void UGtHeroAnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds)
 	bIsWallRunning = StatusTags.HasTag(GtGameplayTags::Status_Action_WallRunning);
 	bIsWallRunningRight = StatusTags.HasTag(GtGameplayTags::Status_Action_WallRunning_Right);
 	bIsCrouching = StatusTags.HasTag(GtGameplayTags::Status_Action_Crouching);
+	bIsSliding = StatusTags.HasTag(GtGameplayTags::Status_Action_Sliding);
     
 	AimOffsetYaw = HeroAnimProxy.CachedAimOffsetYaw;
 	AimOffsetPitch = HeroAnimProxy.CachedAimOffsetPitch;
