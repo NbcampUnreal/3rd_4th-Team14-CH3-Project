@@ -33,6 +33,54 @@ void UGtHeroMovementComponent::CacheInitialValues()
     }
 }
 
+void UGtHeroMovementComponent::UpdateCharacterStateBeforeMovement(float DeltaSeconds)
+{
+    if (bSprintInputHeld && CanSprintInCurrentState())
+    {
+        bWantsToSprint = true;
+    }
+    else
+    {
+        bWantsToSprint = false;
+    }
+
+    if (HeroCharacterOwner)
+    {
+        // Sprint 시작 체크
+        if (!HeroCharacterOwner->bIsSprinting && bWantsToSprint) // CanSprintInCurrentState() 검사는 위에서 이미 반영됨
+        {
+            Sprint();
+        }
+        // Sprint 종료 체크
+        else if (HeroCharacterOwner->bIsSprinting &&!bWantsToSprint)
+        {
+            UnSprint(ESprintEndReason::Manual);
+        }
+    }
+
+    Super::UpdateCharacterStateBeforeMovement(DeltaSeconds);
+}
+
+float UGtHeroMovementComponent::GetMaxSpeed() const
+{
+    if (HeroCharacterOwner && HeroCharacterOwner->bIsSprinting)
+    {
+        return SprintMaxSpeed;
+    }
+    
+    return Super::GetMaxSpeed();
+}
+
+float UGtHeroMovementComponent::GetMaxAcceleration() const
+{
+    if (HeroCharacterOwner && HeroCharacterOwner->bIsSprinting)
+    {
+        return SprintAcceleration;
+    }
+    
+    return Super::GetMaxAcceleration();
+}
+
 void UGtHeroMovementComponent::OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode)
 {
     Super::OnMovementModeChanged(PreviousMovementMode, PreviousCustomMode);
@@ -133,9 +181,15 @@ void UGtHeroMovementComponent::StartSlide()
 {
     if (!CharacterOwner || !CharacterOwner->GetCapsuleComponent())
         return;
+
+    if (HeroCharacterOwner && HeroCharacterOwner->bIsSprinting)
+    {
+        // Sprint 실행만 종료, 입력 상태(bSprintInputHeld)는 유지
+        HeroCharacterOwner->bIsSprinting = false;
+        HeroCharacterOwner->OnEndSprint();
+    }
     
     SetCapsuleSize(CrouchedHalfHeight);
-
     SetMovementMode(MOVE_Custom, CMM_Slide);
 
     // 속도 부스트
@@ -535,6 +589,98 @@ void UGtHeroMovementComponent::PhysSlide(float DeltaTime, int32 Iterations)
     }
 }
 
+void UGtHeroMovementComponent::Sprint()
+{
+    if (!HeroCharacterOwner)
+        return;
+
+    HeroCharacterOwner->bIsSprinting = true;
+    HeroCharacterOwner->OnStartSprint();
+}
+
+void UGtHeroMovementComponent::UnSprint(ESprintEndReason Reason)
+{
+    if (!HeroCharacterOwner)
+        return;
+    
+    // 종료 이유별 처리
+    switch(Reason)
+    {
+    case ESprintEndReason::WrongDirection:
+        Velocity *= 0.8f;  // 방향 전환 시 감속
+        break;
+            
+    case ESprintEndReason::Collision:
+        Velocity *= 0.5f;  // 충돌 시 더 많은 감속
+        break;
+    default:
+        break;
+    }
+
+    HeroCharacterOwner->bIsSprinting = false;
+    HeroCharacterOwner->OnEndSprint();
+}
+
+bool UGtHeroMovementComponent::CanSprintInCurrentState() const
+{
+    if (IsCrouching() || IsSliding() || IsWallRunning())
+        return false;
+
+    // Sprint 상태였으면 공중에서도 우선 조건 통과 (착지 시 자동 재개를 위함)
+    // 새로 시작할 때만 지상 체크
+    if (!IsMovingOnGround())
+    {
+        // 이미 Sprint 중이었다면 유지 가능
+        if (HeroCharacterOwner && HeroCharacterOwner->bIsSprinting)
+            return true;
+        
+        return false;  // 새로 시작은 불가
+    }
+
+    // 최소 속도 체크
+    if (!HeroCharacterOwner->bIsSprinting && Velocity.Size2D() < SprintMinSpeed)
+    {
+        return false;
+    }
+    
+    const FVector InputVector = CharacterOwner->GetLastMovementInputVector();
+    if (InputVector.IsNearlyZero())
+    {
+        return false;
+    }
+
+    // 플레이어의 현재 카메라 방향과 입력 방향에 대해 체크
+    const FRotator CameraRotation = CharacterOwner->GetControlRotation();
+    const FRotator YawRotation(0, CameraRotation.Yaw, 0);
+    const FVector CameraForward = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+    const FVector MovementDirection = InputVector.GetSafeNormal();
+
+    const float CameraAlignment = FVector::DotProduct(CameraForward, MovementDirection);
+    const float CameraThreshold = FMath::Cos(FMath::DegreesToRadians(SprintForwardAngleThreshold)); // 45도
+
+    if (CameraAlignment < CameraThreshold)
+    {
+        // 플레이어의 입력이 카메라 기준 전방이 아니면 질주 불가
+        return false;
+    }
+
+    // 새로 Sprint 시작시 캐릭터가 이동 방향을 바라보는지 체크
+    if (HeroCharacterOwner &&!HeroCharacterOwner->bIsSprinting)
+    {
+        const FVector ActorForward = CharacterOwner->GetActorForwardVector();
+        const float CharacterAlignment = FVector::DotProduct(ActorForward, MovementDirection);
+
+        // 캐릭터가 이동하려는 방향을 아직 바라보고 있지 않다면
+        // 먼저 회전해야 하므로 sprint 불가
+        if (CharacterAlignment < 0.8f)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool UGtHeroMovementComponent::CanStandUp() const
 {
     if (!CharacterOwner)
@@ -708,9 +854,3 @@ void UGtHeroMovementComponent::InvalidateGroundInfo()
 {
     CachedGroundInfoFrame = 0;
 }
-
-
-
-
-
-

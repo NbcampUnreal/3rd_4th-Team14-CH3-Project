@@ -30,6 +30,16 @@ enum class ESlideEndReason : uint8
 	Collision     UMETA(DisplayName = "Collision")     // 충돌로 인한 종료
 };
 
+UENUM(BlueprintType)
+enum class ESprintEndReason : uint8
+{
+	Manual         UMETA(DisplayName = "Manual"),           // 사용자가 키를 뗌
+	SpeedTooLow    UMETA(DisplayName = "Speed Too Low"),    // 속도 부족
+	WrongDirection UMETA(DisplayName = "Wrong Direction"),  // 잘못된 방향
+	StateChange    UMETA(DisplayName = "State Change"),     // 다른 상태로 전환
+	Collision      UMETA(DisplayName = "Collision"),        // 충돌
+};
+
 DECLARE_DELEGATE_TwoParams(FOnCapsuleSizeChanged, float /*HalfHeightAdjust*/, float /*ScaledHalfHeightAdjust*/);
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
@@ -41,6 +51,9 @@ public:
 	UGtHeroMovementComponent();
 
 	virtual void SetUpdatedComponent(USceneComponent* NewUpdatedComponent) override;
+	
+	virtual float GetMaxSpeed() const override;
+	virtual float GetMaxAcceleration() const override;
 
 	void StartWallRun(bool bIsRightWall);
 	void EndWallRun();
@@ -52,6 +65,13 @@ public:
 	void EndSlide(ESlideEndReason Reason = ESlideEndReason::Normal);
 	bool CanSlide() const;
 	bool CanStandUp() const;
+	bool IsSliding() const { return MovementMode == MOVE_Custom && CustomMovementMode == CMM_Slide; }
+
+	void Sprint();
+	void UnSprint(ESprintEndReason Reason = ESprintEndReason::Manual);
+	bool CanSprintInCurrentState() const;
+	void SetSprintInput(const bool bIsPressed) { bSprintInputHeld = bIsPressed; }
+	bool IsSprintInputHeld() const { return bSprintInputHeld; }
 
 	uint8 GetCustomMovementMode() const { return CustomMovementMode; }
 	
@@ -66,6 +86,7 @@ public:
 	FOnCapsuleSizeChanged OnCapsuleSizeChanged;
 	
 protected:
+	virtual void UpdateCharacterStateBeforeMovement(float DeltaSeconds) override;
 	virtual void OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode) override;
 	virtual void PhysCustom(float DeltaTime, int32 Iterations) override;
 	
@@ -137,6 +158,7 @@ public:
 	/**
 	 * Slide 관련 속성들
 	 */
+	
 	UPROPERTY(EditDefaultsOnly, Category = "Movement|Slide")
 	float SlideMinSpeed = 400.0f;
 
@@ -159,10 +181,30 @@ public:
 	float SlideForwardConeAngle = 60.0f;  // 전방 입력 판정 콘 각도 (도)
     
 	UPROPERTY(EditDefaultsOnly, Category = "Movement|Slide", meta = (ClampMin = "0.0", ClampMax = "180.0"))
-	float SlideMaxSteeringRate = 30.0f;  // 초당 최대 회전 각도 (도)
+	float SlideMaxSteeringRate = 15.0f;  // 초당 최대 회전 각도 (도)
     
 	UPROPERTY(EditDefaultsOnly, Category = "Movement|Slide", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float SlideSteeringResponsiveness = 1.0f;  // 조향 반응성 (0=무시, 1=최대)
+
+	/**
+	 * Sprint 관련 속성들
+	 */
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Movement|Sprint")
+	float SprintMaxSpeed = 900.0f;
+    
+	UPROPERTY(EditDefaultsOnly, Category = "Movement|Sprint")
+	float SprintAcceleration = 2000.0f;
+    
+	UPROPERTY(EditDefaultsOnly, Category = "Movement|Sprint")
+	float SprintMinSpeed = 200.0f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Movement|Sprint", meta = (ClampMin = "0.0", ClampMax = "90.0"))
+	float SprintForwardAngleThreshold = 50.0f;  // 전방 각도 허용 범위 (도)
+
+	uint8 bWantsToSprint : 1;
+
+	bool bSprintInputHeld = false;
 	
 protected:
 	UPROPERTY()
@@ -170,7 +212,7 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Movement|Ground")
 	float GroundTraceDistance = 500.0f;
-
+	
 private:
 	
 	FVector WallRunNormal = FVector::ZeroVector;
@@ -190,7 +232,5 @@ private:
 
 	// Standing 캡슐 높이 캐싱
 	float StandingCapsuleHalfHeight = 96.0f;
-	
-	float DefaultGroundFriction;
-	float DefaultBrakingDecelerationWalking;
+
 };

@@ -62,6 +62,8 @@ void AGtHeroCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_Look, ETriggerEvent::Triggered, this, &ThisClass::Input_Look);
 	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_Jump, ETriggerEvent::Started, this, &ThisClass::Input_Jump);
 	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_Crouch, ETriggerEvent::Started, this, &ThisClass::Input_Crouch);
+	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_Sprint, ETriggerEvent::Started, this, &ThisClass::Input_SprintStart);
+	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_Sprint, ETriggerEvent::Completed, this, &ThisClass::Input_SprintStop);
 }
 
 void AGtHeroCharacter::Input_Move(const FInputActionValue& InputActionValue)
@@ -91,14 +93,11 @@ void AGtHeroCharacter::Input_Look(const FInputActionValue& InputActionValue)
 	const FVector2D Value = InputActionValue.Get<FVector2D>();
 	if (Value.X != 0.0f)
 	{
-		// X에는 Yaw 값이 있음:
-		// - Camera에 대해 Yaw 적용
 		AddControllerYawInput(Value.X);
 	}
 
 	if (Value.Y != 0.0f)
 	{
-		// Y에는 Pitch 값!
 		double AimInversionValue = -Value.Y;
 		AddControllerPitchInput(AimInversionValue);
 	}
@@ -160,15 +159,28 @@ void AGtHeroCharacter::Input_Crouch(const FInputActionValue& InputActionValue)
 	if (HasStatusTag(GtGameplayTags::Status_Action_Crouching))
 	{
 		UnCrouch();
+		return;
 	}
-	else if (ShouldStartSlide())
+	if (HasStatusTag(GtGameplayTags::Status_Action_Sprinting))
 	{
-		StartSlide();
+		if (ShouldStartSlide())
+		{
+			StartSlide();
+			return;
+		}
 	}
-	else
-	{
-		Crouch();
-	}
+	
+	Crouch();
+}
+
+void AGtHeroCharacter::Input_SprintStart(const FInputActionValue& InputActionValue)
+{
+	Sprint();
+}
+
+void AGtHeroCharacter::Input_SprintStop(const FInputActionValue& InputActionValue)
+{
+	UnSprint();
 }
 
 bool AGtHeroCharacter::CanJumpInternal_Implementation() const
@@ -178,7 +190,12 @@ bool AGtHeroCharacter::CanJumpInternal_Implementation() const
 	{
 		return GetCharacterMovement()->IsMovingOnGround() || JumpCount < MaxJumpCount;
 	}
-    
+
+	if (HasStatusTag(GtGameplayTags::Status_Action_Sprinting))
+	{
+		return GetCharacterMovement()->IsMovingOnGround() || JumpCount < MaxJumpCount;
+	}
+	
 	// 웅크린 상태에서는 점프 불가
 	if (HasStatusTag(GtGameplayTags::Status_Action_Crouching))
 	{
@@ -228,6 +245,48 @@ bool AGtHeroCharacter::CanCrouch() const
 	}
 	
 	return Super::CanCrouch();
+}
+
+void AGtHeroCharacter::Sprint()
+{
+	if (HeroMovementComponent)
+	{
+		if (bIsCrouched)
+		{
+			UnCrouch();
+		}
+		HeroMovementComponent->SetSprintInput(true);
+	}
+}
+
+void AGtHeroCharacter::UnSprint()
+{
+	if (HeroMovementComponent)
+	{
+		HeroMovementComponent->SetSprintInput(false);
+	}
+}
+
+bool AGtHeroCharacter::CanSprint() const
+{
+	if (bIsSprinting)
+		return false;  
+        
+	if (HasStatusTag(GtGameplayTags::Status_Dead))
+		return false;
+    
+	// MovementComponent 체크
+	return HeroMovementComponent && HeroMovementComponent->CanSprintInCurrentState();
+}
+
+void AGtHeroCharacter::OnStartSprint()
+{
+	AddStatusTag(GtGameplayTags::Status_Action_Sprinting);
+}
+
+void AGtHeroCharacter::OnEndSprint()
+{
+	RemoveStatusTag(GtGameplayTags::Status_Action_Sprinting);
 }
 
 bool AGtHeroCharacter::ShouldStartSlide() const

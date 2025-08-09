@@ -31,6 +31,17 @@ public:
 	virtual void OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 	virtual void OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 	virtual bool CanCrouch() const override;
+
+	UFUNCTION(BlueprintCallable, Category = "Character")
+	virtual void Sprint();
+    
+	UFUNCTION(BlueprintCallable, Category = "Character")
+	virtual void UnSprint();
+    
+	virtual bool CanSprint() const;
+	
+	void OnStartSprint();
+	void OnEndSprint();
 	
 	USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	UGtHeroMovementComponent* GetHeroMovementComponent() const { return HeroMovementComponent; }
@@ -43,6 +54,9 @@ protected:
 	void Input_Look(const FInputActionValue& InputActionValue);
 	void Input_Jump(const FInputActionValue& InputActionValue);
 	void Input_Crouch(const FInputActionValue& InputActionValue);
+	void Input_SprintStart(const FInputActionValue& InputActionValue);
+	void Input_SprintStop(const FInputActionValue& InputActionValue);
+
 
 	UFUNCTION()
 	void OnLandedCallback(const FHitResult& Hit);
@@ -52,7 +66,7 @@ protected:
 
 	bool ShouldStartSlide() const;
 	void StartSlide();
-
+	
 private:
 
 	/**
@@ -60,6 +74,10 @@ private:
 	 */
 	void HandleCapsuleSizeChanged(float HalfHeightAdjust, float ScaledHalfHeightAdjust);
 
+public:
+	UPROPERTY(BlueprintReadOnly, Category = "Character")
+	uint8 bIsSprinting : 1;
+	
 protected:
 	UPROPERTY()
 	TObjectPtr<UGtHeroMovementComponent> HeroMovementComponent;
