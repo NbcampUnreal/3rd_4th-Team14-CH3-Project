@@ -3,7 +3,6 @@
 #include "GtEnemyAiController.h"
 #include "GtEnemyMotherAiController.h"
 #include "NavigationSystem.h"
-#include "RewindData.h"
 #include "Perception/AIPerceptionComponent.h"
 #include "Perception/AISenseConfig_Sight.h"
 #include "Kismet/GameplayStatics.h"
@@ -21,9 +20,9 @@ AGtEnemyAiController::AGtEnemyAiController()
 	AIPerception->SetDominantSense(SightConfig->GetSenseImplementation());
 	
 	SightConfig->SightRadius = 1500.0f;
-	SightConfig->LoseSightRadius = 1700.0f;
-	SightConfig->PeripheralVisionAngleDegrees = 90.0f;
-	SightConfig->SetMaxAge(2.0f);
+	SightConfig->LoseSightRadius = 2000.0f;
+	SightConfig->PeripheralVisionAngleDegrees = 120.0f;
+	SightConfig->SetMaxAge(4.0f);
 
 	SightConfig->DetectionByAffiliation.bDetectEnemies = true;
 	SightConfig->DetectionByAffiliation.bDetectNeutrals = true;
@@ -32,7 +31,7 @@ AGtEnemyAiController::AGtEnemyAiController()
 	MotherAiPosition = FVector::ZeroVector;
 		
 	//State
-	EAiState CurrentState = EAiState::Move;
+	CurrentState = EAiState::Move;
 	ObeyValue = FMath::RandRange(1, 10);
 }
 
@@ -159,17 +158,6 @@ void AGtEnemyAiController::OnPerceptionUpdated(AActor* Actor, FAIStimulus Stimul
 		);
 
 		StartChasing(Actor);
-		
-		float Distance = GetPawn()->GetDistanceTo(CurrentTarget);
-		if (Distance <= 1000.f)
-		{
-			//StopChasing();
-			//AttackAction();
-		}
-		else
-		{
-			
-		}
 	}
 	else
 	{
@@ -192,12 +180,12 @@ void AGtEnemyAiController::OnPerceptionUpdated(AActor* Actor, FAIStimulus Stimul
 //movement
 void AGtEnemyAiController::IdleAction()
 {
-	EAiState CurrentState = EAiState::Idle;
+	CurrentState = EAiState::Idle;
 }
 
 void AGtEnemyAiController::MoveRandomOrAiLocation()
 {
-	EAiState CurrentState = EAiState::Move;
+	CurrentState = EAiState::Move;
 	APawn* MyPawn = GetPawn();
 	if (!MyPawn)
 	{
@@ -262,7 +250,7 @@ void AGtEnemyAiController::MoveRandomOrAiLocation()
 
 void AGtEnemyAiController::StartChasing(AActor* Target)
 {
-	EAiState CurrentState = EAiState::Chase;
+	CurrentState = EAiState::Chase;
 	
 	if (bIsChasing && CurrentTarget == Target) return;
 	CurrentTarget = Target;
@@ -287,12 +275,12 @@ void AGtEnemyAiController::UpdateChase()
 
 	if (bIsChasing)
 	{
-		MoveToActor(CurrentTarget, 300.0f);
+		MoveToActor(CurrentTarget, 400.0f);
 	}
 
 	float Distance = FVector::Dist(MyPawn->GetActorLocation(), CurrentTarget->GetTargetLocation());
 
-	if (Distance < 400.f)
+	if (Distance < 1500.f)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[EnemyAi] Close enough to attack. Distance: %f"), Distance);
 		AttackTimerOn();
@@ -320,7 +308,7 @@ void AGtEnemyAiController::StopChasing()
 
 void AGtEnemyAiController::AttackAction()
 {
-	EAiState CurrentState = EAiState::Attack;
+	CurrentState = EAiState::Attack;
 	UE_LOG(LogTemp, Warning, TEXT("[EnemyAi] Shoot Player."));
 	ClearAllTimers();
 	
@@ -339,7 +327,7 @@ void AGtEnemyAiController::ReloadAction()
 {	
 	ClearAllTimers();
 	UE_LOG(LogTemp, Warning, TEXT("[EnemyAi] Reloading."));
-	EAiState CurrentState = EAiState::Reload;
+	CurrentState = EAiState::Reload;
 
 	if (CurrentTarget != nullptr)
 	{
