@@ -13,6 +13,11 @@ void AGtItemBase::UseItem()
 	UE_LOG(LogTemp, Warning, TEXT("Base item used: %s"), *ItemData.ItemName);
 }
 
+const FGtItemData& AGtItemBase::GetItemData() const
+{
+	return ItemData;
+}
+
 void AGtItemBase::InitFromData(const FGtItemData& InData)
 {
 	ItemData = InData;

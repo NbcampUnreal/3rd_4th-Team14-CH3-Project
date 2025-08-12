@@ -20,7 +20,8 @@ public class Gigantes : ModuleRules
 			"GameplayTags", 
 			"UMG",
 			"Json",
-			"JsonUtilities"
+			"JsonUtilities",
+			"Niagara"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });

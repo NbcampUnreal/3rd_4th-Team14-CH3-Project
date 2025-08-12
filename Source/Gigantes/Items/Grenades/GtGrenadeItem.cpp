@@ -1,19 +1,19 @@
-#include "GtGranadeItem.h"
+#include "GtGrenadeItem.h"
 
 
 // Sets default values
-AGtGranadeItem::AGtGranadeItem()
+AGtGrenadeItem::AGtGrenadeItem()
 {
 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
 }
 
-void AGtGranadeItem::Throw()
+void AGtGrenadeItem::Throw()
 {
 	GetWorld()->GetTimerManager().SetTimer(
 		ExplosionTimer,
 		this,
-		&AGtGranadeItem::Explode,
+		&AGtGrenadeItem::Explode,
 		ExplosionDelay,
 		false
 	);
@@ -21,7 +21,7 @@ void AGtGranadeItem::Throw()
 	UE_LOG(LogTemp, Log, TEXT("[Grenade] Throw %.2f seconds"), ExplosionDelay);
 }
 
-void AGtGranadeItem::Explode()
+void AGtGrenadeItem::Explode()
 {
 	UE_LOG(LogTemp, Warning, TEXT("[Grenade] BOOM!"));
 

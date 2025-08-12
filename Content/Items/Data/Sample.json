@@ -1,10 +1,10 @@
 [
   {
-    "ItemId": "rifle_ak47_01",
+    "ItemId": "riffle_ak47_01",
     "ItemName": "AK-47",
     "ItemType": "Weapon",
-    "SubType": "Rifle",
-    "Description": "Full auto assault rifle",
+    "SubType": "Riffle",
+    "Description": "Full auto assault riffle",
     "Damage": 30,
     "MaxAmmo": 30,
     "AmmoInMagazine": 30,
@@ -13,7 +13,7 @@
     "ExplosionRadius": 0.0,
     "ExplosionDelay": 0.0,
     "HealAmount": 0,
-    "ItemTag": "Item.Weapon.Rifle",
-    "ClassPath": "/Game/Items/Blueprints/BP_GtRiffle.BP_GtRiffle_C"
+    "ItemTag": "Item.Weapon.Riffle",
+    "ClassPath": "/Game/Item/BP_Riffle.BP_Riffle_C"
   }
 ]

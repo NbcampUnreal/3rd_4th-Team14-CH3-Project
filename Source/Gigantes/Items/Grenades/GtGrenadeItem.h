@@ -2,16 +2,16 @@
 
 #include "CoreMinimal.h"
 #include "Gigantes/Items/Base/GtItemBase.h"
-#include "GtGranadeItem.generated.h"
+#include "GtGrenadeItem.generated.h"
 
 UCLASS()
-class GIGANTES_API AGtGranadeItem : public AGtItemBase
+class GIGANTES_API AGtGrenadeItem : public AGtItemBase
 {
 	GENERATED_BODY()
 
 public:
 	// Sets default values for this actor's properties
-	AGtGranadeItem();
+	AGtGrenadeItem();
 
 	virtual void Throw();
 

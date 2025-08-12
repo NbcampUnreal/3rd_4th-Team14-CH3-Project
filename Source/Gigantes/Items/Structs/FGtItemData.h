@@ -50,4 +50,7 @@ struct FGtItemData
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FGameplayTag ItemTag;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FSoftClassPath ClassPath;
 };

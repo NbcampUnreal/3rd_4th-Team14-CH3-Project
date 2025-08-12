@@ -12,10 +12,18 @@ class GIGANTES_API UGtItemFactory : public UObject
 
 public:
 	static bool LoadItemData(const FString& FilePath, TMap<FString, FGtItemData>& OutMap);
+	// static bool LoadItemDataFile(const FString& FilePath, TMap<FString, FGtItemData>& OutMap);
+	static int32 LoadItemDataDir(const FString& DirPath, TMap<FString, FGtItemData>& OutMap, bool bRecursive = true);
+	static int32 LoadItemDataFromDirs(const TArray<FString>& Dirs, TMap<FString, FGtItemData>& OutMap);
+	
 	static AGtItemBase* CreateItem(const FGtItemData& Data, UWorld* World);
-	static void InitItemClassMap();
+	// static void InitItemClassMap();
 
 private:
-	static TMap<FGameplayTag, TSubclassOf<AGtItemBase>> ItemClassMap;
+	static TMap<FGameplayTag, TSubclassOf<AGtItemBase>> TagClassMap;
+	static TMap<FName, TSubclassOf<AGtItemBase>> SubtypeMap;
+
+	static void LoadClassMappings();
+	
 	static bool bIsInitialized;
 };

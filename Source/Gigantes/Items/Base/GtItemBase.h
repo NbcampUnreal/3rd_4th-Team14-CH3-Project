@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "../Structs/FGtItemData.h"
+#include "Gigantes/Items/Structs/FGtItemData.h"
 #include "GtItemBase.generated.h"
 
 UCLASS()
@@ -11,6 +11,7 @@ class GIGANTES_API AGtItemBase : public AActor
 	GENERATED_BODY()
 
 protected:
+	UPROPERTY(VisibleAnywhere)
 	FGtItemData ItemData;
 	
 public:
@@ -19,9 +20,5 @@ public:
 	virtual void UseItem();
 
 	const FGtItemData& GetItemData() const;
-	FString GetItemName() const;
-	FString GetItemId() const;
-	FString GetItemType() const;
-	FGameplayTag GetItemTag() const;
 	
 };

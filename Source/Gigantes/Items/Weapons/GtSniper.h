@@ -13,5 +13,4 @@ public:
 	// Sets default values for this actor's properties
 	AGtSniper();
 
-
 };

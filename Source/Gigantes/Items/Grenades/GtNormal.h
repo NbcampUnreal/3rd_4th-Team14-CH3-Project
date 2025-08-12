@@ -1,11 +1,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GtGranadeItem.h"
+#include "GtGrenadeItem.h"
 #include "GtNormal.generated.h"
 
 UCLASS()
-class GIGANTES_API AGtNormal : public AGtGranadeItem
+class GIGANTES_API AGtNormal : public AGtGrenadeItem
 {
 	GENERATED_BODY()
 

@@ -28,7 +28,7 @@ bool FItemDataJsonParseTest::RunTest(const FString& Parameters)
         "ExplosionRadius": 0.0,
         "ExplosionDelay": 0.0,
         "HealAmount": 0,
-        "ItemTag": "Item.Weapon.Riffle"
+        "ItemTag": "Item.Weapon.Rifle"
     })";
 
 	TSharedPtr<FJsonObject> JsonObject;
