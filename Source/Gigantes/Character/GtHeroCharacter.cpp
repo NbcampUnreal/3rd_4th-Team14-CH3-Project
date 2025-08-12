@@ -5,7 +5,9 @@
 #include "Components/GtHeroMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Gigantes/GtGameplayTags.h"
+#include "Gigantes/Equipments/Components/GtEquipmentComponent.h"
 #include "Gigantes/Input/GtInputComponent.h"
+#include "Gigantes/Items/Manager/GtItemManagerComponent.h"
 
 AGtHeroCharacter::AGtHeroCharacter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UGtHeroMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -25,6 +27,9 @@ AGtHeroCharacter::AGtHeroCharacter(const FObjectInitializer& ObjectInitializer)
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom);
 	FollowCamera->bUsePawnControlRotation = false;
+
+	ItemManager = CreateDefaultSubobject<UGtItemManagerComponent>(TEXT("ItemManager"));
+	EquipmentComponent = CreateDefaultSubobject<UGtEquipmentComponent>(TEXT("EquipmentComponent"));
 }
 
 // Called when the game starts or when spawned
@@ -63,6 +68,9 @@ void AGtHeroCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_Crouch, ETriggerEvent::Started, this, &ThisClass::Input_Crouch);
 	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_Sprint, ETriggerEvent::Started, this, &ThisClass::Input_SprintStart);
 	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_Sprint, ETriggerEvent::Completed, this, &ThisClass::Input_SprintStop);
+	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_Sprint, ETriggerEvent::Triggered, this, &ThisClass::Input_PrimaryAction);
+	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_Sprint, ETriggerEvent::Triggered, this, &ThisClass::Input_SecondaryAction);
+	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_Sprint, ETriggerEvent::Started, this, &ThisClass::Input_Reload);
 }
 
 void AGtHeroCharacter::Input_Move(const FInputActionValue& InputActionValue)
@@ -180,6 +188,30 @@ void AGtHeroCharacter::Input_SprintStart(const FInputActionValue& InputActionVal
 void AGtHeroCharacter::Input_SprintStop(const FInputActionValue& InputActionValue)
 {
 	UnSprint();
+}
+
+void AGtHeroCharacter::Input_PrimaryAction(const FInputActionValue& InputActionValue)
+{
+	if (EquipmentComponent)
+	{
+		EquipmentComponent->PrimaryAction();
+	}
+}
+
+void AGtHeroCharacter::Input_SecondaryAction(const FInputActionValue& InputActionValue)
+{
+	if (EquipmentComponent)
+	{
+		EquipmentComponent->SecondaryAction();
+	}
+}
+
+void AGtHeroCharacter::Input_Reload(const FInputActionValue& InputActionValue)
+{
+	if (EquipmentComponent)
+	{
+		EquipmentComponent->ReloadAction();
+	}
 }
 
 bool AGtHeroCharacter::CanJumpInternal_Implementation() const

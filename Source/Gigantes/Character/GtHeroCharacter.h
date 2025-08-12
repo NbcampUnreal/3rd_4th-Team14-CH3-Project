@@ -6,6 +6,8 @@
 #include "GtHumanBase.h"
 #include "GtHeroCharacter.generated.h"
 
+class UGtEquipmentComponent;
+class UGtItemManagerComponent;
 struct FInputActionValue;
 
 class UGtHeroMovementComponent;
@@ -54,6 +56,9 @@ protected:
 	void Input_Crouch(const FInputActionValue& InputActionValue);
 	void Input_SprintStart(const FInputActionValue& InputActionValue);
 	void Input_SprintStop(const FInputActionValue& InputActionValue);
+	void Input_PrimaryAction(const FInputActionValue& InputActionValue);
+	void Input_SecondaryAction(const FInputActionValue& InputActionValue);
+	void Input_Reload(const FInputActionValue& InputActionValue);
 
 
 	UFUNCTION()
@@ -93,6 +98,12 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<UCameraComponent> FollowCamera;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ItemManager")
+	TObjectPtr<UGtItemManagerComponent> ItemManager;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Equipment")
+	TObjectPtr<UGtEquipmentComponent> EquipmentComponent;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UGtInputConfig> InputConfigDataAsset;
@@ -101,5 +112,4 @@ protected:
 	int32 MaxJumpCount = 2;
 	
 	int32 JumpCount = 0;
-
 };

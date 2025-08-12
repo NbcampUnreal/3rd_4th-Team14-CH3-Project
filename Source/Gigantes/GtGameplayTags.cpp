@@ -11,6 +11,9 @@ namespace GtGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG(InputTag_Jump, "InputTag.Jump");
 	UE_DEFINE_GAMEPLAY_TAG(InputTag_Crouch, "InputTag.Crouch");
 	UE_DEFINE_GAMEPLAY_TAG(InputTag_Sprint, "InputTag.Sprint");
+	UE_DEFINE_GAMEPLAY_TAG(InputTag_PrimaryAction, "InputTag.PrimaryAction");
+	UE_DEFINE_GAMEPLAY_TAG(InputTag_SecondaryAction, "InputTag.SecondaryAction");
+	UE_DEFINE_GAMEPLAY_TAG(InputTag_Reload, "InputTag.Reload");
 	
 	/** Status Tags */
 	UE_DEFINE_GAMEPLAY_TAG(Status_Action, "Status.Action");
