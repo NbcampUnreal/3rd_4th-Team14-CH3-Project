@@ -28,16 +28,6 @@ protected:
 	
 	// Delegate 선언 (헤더에 추가)
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnScoreUpdated, int32, NewScore);
-
-	// 추가: 체력 변화 델리게이트 (UI 바인딩용)
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnPlayerHealthChanged, float, OldHealth, float, NewHealth);
-	UPROPERTY(BlueprintAssignable, Category = "Game Events")
-	FOnPlayerHealthChanged OnPlayerHealthChanged;
-
-	// 추가: 총알 변화 델리게이트 (UI 바인딩용)
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerAmmoChanged, int32, NewAmmo);
-	UPROPERTY(BlueprintAssignable, Category = "Game Events")
-	FOnPlayerAmmoChanged OnPlayerAmmoChanged;
 	
 	// 이벤트 디스패처 추가 (UI 업데이트용, 블루프린트에서 바인딩 가능)
 	UPROPERTY(BlueprintAssignable, Category = "Game Events")
