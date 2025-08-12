@@ -5,9 +5,6 @@
 #include "CoreMinimal.h"
 #include "Perception/AISenseConfig_Sight.h"
 #include "Perception/AISense_Sight.h"
-#include "TimerManager.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/ScriptMacros.h"
 #include "AIController.h"
 #include "GtEnemyAiController.generated.h"
 
@@ -30,6 +27,9 @@ class GIGANTES_API AGtEnemyAiController : public AAIController
 public:
 	// Sets default values for this actor's properties
 	AGtEnemyAiController();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI")
+	EAiState CurrentState;
 
 protected:
 	virtual void BeginPlay() override;
