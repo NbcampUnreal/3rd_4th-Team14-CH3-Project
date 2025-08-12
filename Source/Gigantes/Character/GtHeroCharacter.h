@@ -37,9 +37,7 @@ public:
     
 	UFUNCTION(BlueprintCallable, Category = "Character")
 	virtual void UnSprint();
-    
-	virtual bool CanSprint() const;
-	
+
 	void OnStartSprint();
 	void OnEndSprint();
 	
@@ -77,6 +75,14 @@ private:
 public:
 	UPROPERTY(BlueprintReadOnly, Category = "Character")
 	uint8 bIsSprinting : 1;
+
+	// TEMP: 애니메이션 테스트용
+	UPROPERTY(BlueprintReadWrite, Category = "Character|Test")
+	bool bIsEquipped = false;
+
+	// TEMP: 애니메이션 테스트용
+	UPROPERTY(BlueprintReadWrite, Category = "Character|Test")
+	bool bUseAimOffset = false;
 	
 protected:
 	UPROPERTY()

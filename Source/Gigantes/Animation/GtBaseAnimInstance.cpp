@@ -51,6 +51,10 @@ void UGtBaseAnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds)
 
 	StatusTags = BaseAnimProxy.CachedStatusTags;
 	GroundSpeed = BaseAnimProxy.Velocity.Size2D();
+	ActorWorldRotation = BaseAnimProxy.ActorRotation;
+	YawDeltaLastFrame = ActorWorldRotation.Yaw - PrevActorWorldRotation.Yaw;
+	PrevActorWorldRotation = ActorWorldRotation;
+	
 	LocomotionDirection = UKismetAnimationLibrary::CalculateDirection(BaseAnimProxy.Velocity, BaseAnimProxy.ActorRotation);
 	bIsInAir = BaseAnimProxy.bIsFalling;
 	bIsOnGround = BaseAnimProxy.bIsMovingOnGround;

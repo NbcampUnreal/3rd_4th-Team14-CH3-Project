@@ -16,7 +16,6 @@ enum ECustomMovementMode
 	CMM_None UMETA(DisplayName = "None"),
 	CMM_WallRun UMETA(DisplayName = "WallRun"),
 	CMM_Slide UMETA(DisplayName = "Slide")
-	
 };
 
 UENUM(BlueprintType)
@@ -201,6 +200,9 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Movement|Sprint", meta = (ClampMin = "0.0", ClampMax = "90.0"))
 	float SprintForwardAngleThreshold = 50.0f;  // 전방 각도 허용 범위 (도)
+
+	UPROPERTY(EditDefaultsOnly, Category = "Movement|Sprint", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float SprintStartAlignmentThreshold = 0.8f;  // 전방 각도 허용 범위 (라디안)
 
 	uint8 bWantsToSprint : 1;
 

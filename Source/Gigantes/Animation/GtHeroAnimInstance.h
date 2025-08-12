@@ -15,6 +15,10 @@ struct FGtHeroAnimInstanceProxy : public FGtBaseAnimInstanceProxy
 	float CachedAimOffsetYaw;
 	float CachedAimOffsetPitch;
 	float CachedGroundDistance;
+
+	// TEMP: 애니메이션 테스트용
+	bool bCachedIsEquipped;
+	bool bCachedUseAimOffset;
 };
 
 UCLASS()
@@ -49,4 +53,12 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	bool bIsSliding;
+
+	// TEMP: 애니메이션 테스트용
+	UPROPERTY(BlueprintReadOnly, Category = "Test")
+	bool bIsEquipped;
+
+	// TEMP: 애니메이션 테스트용
+	UPROPERTY(BlueprintReadOnly, Category = "Test")
+	bool bUseAimOffset;
 };

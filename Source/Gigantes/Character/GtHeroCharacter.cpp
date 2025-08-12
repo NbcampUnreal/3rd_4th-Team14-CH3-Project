@@ -25,7 +25,6 @@ AGtHeroCharacter::AGtHeroCharacter(const FObjectInitializer& ObjectInitializer)
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom);
 	FollowCamera->bUsePawnControlRotation = false;
-	
 }
 
 // Called when the game starts or when spawned
@@ -265,18 +264,6 @@ void AGtHeroCharacter::UnSprint()
 	{
 		HeroMovementComponent->SetSprintInput(false);
 	}
-}
-
-bool AGtHeroCharacter::CanSprint() const
-{
-	if (bIsSprinting)
-		return false;  
-        
-	if (HasStatusTag(GtGameplayTags::Status_Dead))
-		return false;
-    
-	// MovementComponent 체크
-	return HeroMovementComponent && HeroMovementComponent->CanSprintInCurrentState();
 }
 
 void AGtHeroCharacter::OnStartSprint()

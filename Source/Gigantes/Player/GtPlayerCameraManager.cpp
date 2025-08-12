@@ -247,12 +247,11 @@ void AGtPlayerCameraManager::UpdateAimOffset(const FTViewTarget& VT, float Delta
     const FRotator ControlRotation = VT.POV.Rotation;
     const FRotator CharacterRotation = HeroCharacter->GetActorRotation();
 
-    float TargetYaw = FRotator::NormalizeAxis(ControlRotation.Yaw - CharacterRotation.Yaw);
-    float TargetPitch = FRotator::NormalizeAxis(ControlRotation.Pitch);
+    const float TargetYaw = FRotator::NormalizeAxis(ControlRotation.Yaw - CharacterRotation.Yaw);
+    const float TargetPitch = FRotator::NormalizeAxis(ControlRotation.Pitch);
     
-    // 부드러운 전환
-    CurrentAimOffsetYaw = FMath::FInterpTo(CurrentAimOffsetYaw, TargetYaw, DeltaTime, 10.0f);
-    CurrentAimOffsetPitch = FMath::FInterpTo(CurrentAimOffsetPitch, TargetPitch, DeltaTime, 10.0f);
+    CurrentAimOffsetYaw = TargetYaw;
+    CurrentAimOffsetPitch = TargetPitch;
 }
 
 AGtHeroCharacter* AGtPlayerCameraManager::GetHeroCharacter() const

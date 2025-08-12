@@ -47,7 +47,7 @@ void UGtHeroMovementComponent::UpdateCharacterStateBeforeMovement(float DeltaSec
     if (HeroCharacterOwner)
     {
         // Sprint 시작 체크
-        if (!HeroCharacterOwner->bIsSprinting && bWantsToSprint) // CanSprintInCurrentState() 검사는 위에서 이미 반영됨
+        if (!HeroCharacterOwner->bIsSprinting && bWantsToSprint)
         {
             Sprint();
         }
@@ -58,6 +58,7 @@ void UGtHeroMovementComponent::UpdateCharacterStateBeforeMovement(float DeltaSec
         }
     }
 
+    // 내부적으로 Crouch 활성화 유무 처리
     Super::UpdateCharacterStateBeforeMovement(DeltaSeconds);
 }
 
@@ -656,7 +657,7 @@ bool UGtHeroMovementComponent::CanSprintInCurrentState() const
     const FVector MovementDirection = InputVector.GetSafeNormal();
 
     const float CameraAlignment = FVector::DotProduct(CameraForward, MovementDirection);
-    const float CameraThreshold = FMath::Cos(FMath::DegreesToRadians(SprintForwardAngleThreshold)); // 45도
+    const float CameraThreshold = FMath::Cos(FMath::DegreesToRadians(SprintForwardAngleThreshold)); 
 
     if (CameraAlignment < CameraThreshold)
     {
@@ -665,14 +666,14 @@ bool UGtHeroMovementComponent::CanSprintInCurrentState() const
     }
 
     // 새로 Sprint 시작시 캐릭터가 이동 방향을 바라보는지 체크
-    if (HeroCharacterOwner &&!HeroCharacterOwner->bIsSprinting)
+    if (HeroCharacterOwner && !HeroCharacterOwner->bIsSprinting)
     {
         const FVector ActorForward = CharacterOwner->GetActorForwardVector();
         const float CharacterAlignment = FVector::DotProduct(ActorForward, MovementDirection);
 
         // 캐릭터가 이동하려는 방향을 아직 바라보고 있지 않다면
         // 먼저 회전해야 하므로 sprint 불가
-        if (CharacterAlignment < 0.8f)
+        if (CharacterAlignment < SprintStartAlignmentThreshold)
         {
             return false;
         }

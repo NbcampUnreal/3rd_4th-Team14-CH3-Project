@@ -19,6 +19,10 @@ void FGtHeroAnimInstanceProxy::PreUpdate(UAnimInstance* InAnimInstance, float De
 	AGtHeroCharacter* OwningHeroCharacter = Cast<AGtHeroCharacter>(InAnimInstance->GetOwningActor());
 	if (OwningHeroCharacter)
 	{
+		// TEMP: 애니메이션 테스트용
+		bCachedIsEquipped = OwningHeroCharacter->bIsEquipped;
+		bCachedUseAimOffset = OwningHeroCharacter->bUseAimOffset;
+		
 		if (APlayerController* PC = Cast<APlayerController>(OwningHeroCharacter->GetController()))
 		{
 			if (AGtPlayerCameraManager* CameraManager = Cast<AGtPlayerCameraManager>(PC->PlayerCameraManager))
@@ -64,5 +68,9 @@ void UGtHeroAnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds)
 	AimOffsetPitch = HeroAnimProxy.CachedAimOffsetPitch;
 
 	GroundDistance = HeroAnimProxy.CachedGroundDistance;
+
+	// TEMP: 애니메이션 테스트용
+	bIsEquipped = HeroAnimProxy.bCachedIsEquipped;
+	bUseAimOffset = HeroAnimProxy.bCachedUseAimOffset;
 }
 
