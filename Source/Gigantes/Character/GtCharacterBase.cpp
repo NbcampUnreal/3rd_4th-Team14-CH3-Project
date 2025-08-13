@@ -44,11 +44,9 @@ bool AGtCharacterBase::ApplyDamage_Implementation(const FGtDamageInfo& DamageInf
 
 	if (DamageReceiverComponent)
 	{
-		const bool bDamaged = DamageReceiverComponent->Execute_ApplyDamage(DamageReceiverComponent, DamageInfo, OutDamageResult);
-		return bDamaged;
+		// 실제 데미지 계산은 DamageReceiverComponent가 수행
+		return DamageReceiverComponent->ApplyDamage_Implementation(DamageInfo, OutDamageResult);
 	}
-
-	UE_LOG(LogTemp, Warning, TEXT("[%s] No DamageReceiverComponent."), *GetName());
 	return false;
 }
 
@@ -190,7 +188,7 @@ void AGtCharacterBase::HandleDamageResult(const FGtDamageResult& DamageResult)
 	UE_LOG(LogTemp, Log, TEXT("[GtCharacterBase] Handling damage result. Final Damage: %.2f"), DamageResult.FinalDamage);
     
 	// AttributeComponent에 체력 감소 요청
-	if (DamageResult.FinalDamage > 0.f)
+	if (DamageResult.FinalDamage > 0.f && AttributeComponent)
 	{
 		// 체력이 0이 될 경우 AttributeComponent의 델리게이트로 인해 HandleHealthChanged에서 Die 호출
 		AddHealth(-DamageResult.FinalDamage);

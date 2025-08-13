@@ -6,6 +6,7 @@
 
 class UGtItemManagerComponent;
 class AGtWeaponItem;
+class AGtItemBase;
 
 // 장비 상태가 변경되었을 때 호출될 델리게이트 (UI, 애니메이션 등에 알림)
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEquipmentChanged, AGtItemBase*, NewItem);
@@ -39,6 +40,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Equipment")
 	AGtWeaponItem* GetCurrentWeapon() const { return CurrentWeapon; }
 
+	// TODO : 테스트 코드로써 삭제 필요
+	UFUNCTION(BlueprintCallable, Category = "Equipment")
+	void EquipTestWeapon();
+	
 protected:
 	virtual void BeginPlay() override;
 
@@ -47,13 +52,18 @@ public:
 	FOnEquipmentChanged OnEquipmentChanged;
 
 private:
+	
+	// TODO : 테스트용 무기 클래스
+	UPROPERTY(EditDefaultsOnly, Category = "Test")
+	TSubclassOf<AGtWeaponItem> TestWeaponClass;
+	
 	// 현재 장착된 아이템
 	UPROPERTY()
-	TObjectPtr<AGtWeaponItem> CurrentWeapon;
+	TObjectPtr<AGtWeaponItem> CurrentWeapon = nullptr;
     
-	// 장착할 소켓 이름
+	// TODO: 장비 정보에 장착할 소켓 이름 이전
 	UPROPERTY(EditDefaultsOnly, Category = "Equipment")
-	FName WeaponAttachSocketName = FName("hand_r_socket");
+	FName WeaponAttachSocketName = FName("RightHandSocket");
 
 	UPROPERTY()
 	TObjectPtr<UGtItemManagerComponent> ItemManagerComponent;

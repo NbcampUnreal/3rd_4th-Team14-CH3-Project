@@ -68,9 +68,9 @@ void AGtHeroCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_Crouch, ETriggerEvent::Started, this, &ThisClass::Input_Crouch);
 	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_Sprint, ETriggerEvent::Started, this, &ThisClass::Input_SprintStart);
 	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_Sprint, ETriggerEvent::Completed, this, &ThisClass::Input_SprintStop);
-	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_Sprint, ETriggerEvent::Triggered, this, &ThisClass::Input_PrimaryAction);
-	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_Sprint, ETriggerEvent::Triggered, this, &ThisClass::Input_SecondaryAction);
-	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_Sprint, ETriggerEvent::Started, this, &ThisClass::Input_Reload);
+	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_PrimaryAction, ETriggerEvent::Triggered, this, &ThisClass::Input_PrimaryAction);
+	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_SecondaryAction, ETriggerEvent::Triggered, this, &ThisClass::Input_SecondaryAction);
+	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_Reload, ETriggerEvent::Started, this, &ThisClass::Input_Reload);
 }
 
 void AGtHeroCharacter::Input_Move(const FInputActionValue& InputActionValue)
@@ -192,6 +192,12 @@ void AGtHeroCharacter::Input_SprintStop(const FInputActionValue& InputActionValu
 
 void AGtHeroCharacter::Input_PrimaryAction(const FInputActionValue& InputActionValue)
 {
+	// TODO : 행동 가능 상태 체크를 어떻게 구현할지 고민
+	if (HasStatusTag(GtGameplayTags::Status_Dead))
+	{
+		return; 
+	}
+	
 	if (EquipmentComponent)
 	{
 		EquipmentComponent->PrimaryAction();
