@@ -8,9 +8,10 @@ AGtItemBase::AGtItemBase()
 
 }
 
-void AGtItemBase::UseItem()
+bool AGtItemBase::UseItem()
 {
 	UE_LOG(LogTemp, Warning, TEXT("Base item used: %s"), *ItemData.ItemName);
+	return true;
 }
 
 const FGtItemData& AGtItemBase::GetItemData() const

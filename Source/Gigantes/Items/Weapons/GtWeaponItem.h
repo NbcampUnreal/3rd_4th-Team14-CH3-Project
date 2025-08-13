@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Gigantes/Items/Base/GtItembase.h"
+#include "Gigantes/Items/Base/GtItemBase.h"
 #include "NiagaraSystem.h"
 #include "GtWeaponItem.generated.h"
 

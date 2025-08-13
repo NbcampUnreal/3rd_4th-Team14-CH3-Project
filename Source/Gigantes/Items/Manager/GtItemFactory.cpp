@@ -103,7 +103,7 @@ void UGtItemFactory::LoadClassMappings()
 
 	// 프로젝트의 UDataAsset 경로를 지정합니다.
 	// 프로젝트 설정(Config) 파일에서 이 경로를 가져오는 것이 더 좋은 방법입니다.
-	FSoftObjectPath MappingAssetPath(TEXT("/Game/DA/ItemClassMapping.ItemClassMapping"));
+	FSoftObjectPath MappingAssetPath(TEXT("/Game/Items/DA/ItemClassMapping.ItemClassMapping"));
 	UItemClassMapping* MappingAsset = Cast<UItemClassMapping>(MappingAssetPath.TryLoad());
 
 	if (!MappingAsset)
@@ -197,8 +197,6 @@ AGtItemBase* UGtItemFactory::CreateItem(const FGtItemData& Data, UWorld* World)
 		FRotator::ZeroRotator,
 		P);
 	
-	// if (Item) { Item->InitFromData(Data); }
-	// return Item;
 	if (!Item)
 	{
 		UE_LOG(LogTemp, Error, TEXT("[ItemFactory] Spawn failed for class %s"),

@@ -19,7 +19,7 @@ void UGtItemManagerComponent::LoadAllItemData()
 	if (DataDirectories.Num() == 0)
 	{
 		Dirs = {
-			FPaths::ProjectContentDir() / TEXT("Data/Items"),
+			FPaths::ProjectContentDir() / TEXT("Items/Data"),
 			FPaths::ProjectContentDir() / TEXT("Data/Weapons") // 필요에 따라 추가
 		 };
 	}

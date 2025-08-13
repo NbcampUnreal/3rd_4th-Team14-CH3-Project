@@ -17,7 +17,7 @@ protected:
 public:
 	AGtItemBase();
 	virtual void InitFromData(const FGtItemData& data);
-	virtual void UseItem();
+	virtual bool UseItem();
 
 	const FGtItemData& GetItemData() const;
 	
