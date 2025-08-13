@@ -14,15 +14,20 @@ class GIGANTES_API UGtItemManagerComponent : public UActorComponent
 public:
 	UGtItemManagerComponent();
 
+	UFUNCTION(BlueprintCallable)
+	AGtItemBase* SpawnItemByIdAt(const FString& ItemId, const FVector& Location, const FRotator& Rotation);
+
 	UPROPERTY(EditAnywhere, Category="Item|Data")
 	TArray<FDirectoryPath> DataDirectories; // 에디터에서 폴더 여러 개 지정
 
 	UPROPERTY(VisibleAnywhere)
 	TMap<FString, FGtItemData> ItemDataMap;
 
-	UFUNCTION(Blueprintable)
+	UFUNCTION(BlueprintCallable)
 	void LoadAllItemData();
+	UFUNCTION(BlueprintCallable)
 	void GiveItemToPlayer(const FString& ItemId);
+	UFUNCTION(BlueprintCallable)
 	void UseItem(int32 Index);
 
 private:

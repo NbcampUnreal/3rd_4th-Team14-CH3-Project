@@ -13,27 +13,82 @@ UGtItemManagerComponent::UGtItemManagerComponent()
  */
 void UGtItemManagerComponent::LoadAllItemData()
 {
+
+	UE_LOG(LogTemp, Warning, TEXT("[ItemManager] DataDirectories.Num=%d"), DataDirectories.Num());
+	for (int32 i=0;i<DataDirectories.Num();++i)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ItemManager]  Dir[%d]=%s"), i, *DataDirectories[i].Path);
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[ItemManager] LoadAllItemData()"));
+
 	TArray<FString> Dirs;
-    
-	// 에디터에서 DataDirectories가 설정 ? 기본 경로를 사용
+
+	auto ToFsDir = [](const FString& In)->FString
+	{
+		// 에디터에서 /Game/Data/Items 처럼 넣었을 때 실제 Content 폴더로 맵핑
+		static const FString GamePrefix = TEXT("/Game/");
+		if (In.StartsWith(GamePrefix))
+		{
+			// "/Game/" 이후 경로를 ProjectContentDir 뒤에 붙인다
+			return FPaths::ProjectContentDir() / In.Mid(GamePrefix.Len());
+		}
+		return In; // 이미 절대경로면 그대로 사용
+	};
+
 	if (DataDirectories.Num() == 0)
 	{
 		Dirs = {
-			FPaths::ProjectContentDir() / TEXT("Data/Items"),
-			FPaths::ProjectContentDir() / TEXT("Data/Weapons") // 필요에 따라 추가
-		 };
+			FPaths::ProjectContentDir() / TEXT("Items/Data"),
+			FPaths::ProjectContentDir() / TEXT("Items/Weapons"),
+		};
 	}
 	else
 	{
 		for (const auto& D : DataDirectories)
 		{
-			Dirs.Add(D.Path);
+			Dirs.Add(ToFsDir(D.Path));
 		}
+	}
+
+	// 어떤 경로를 읽을 건지 먼저 찍기
+	for (const FString& P : Dirs)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ItemManager] Scan Dir: %s"), *P);
 	}
 
 	ItemDataMap.Reset();
 	const int32 Files = UGtItemFactory::LoadItemDataFromDirs(Dirs, ItemDataMap);
-	UE_LOG(LogTemp, Log, TEXT("[ItemManager] Loaded %d files, %d items"), Files, ItemDataMap.Num());
+	UE_LOG(LogTemp, Warning, TEXT("[ItemManager] Loaded %d files, %d items"), Files, ItemDataMap.Num());
+
+	if (ItemDataMap.Num() > 0)
+	{
+		auto It = ItemDataMap.CreateConstIterator();
+		UE_LOG(LogTemp, Warning, TEXT("[ItemManager] First item => %s (%s)"),
+			*It->Value.ItemName, *It->Key);
+	}
+	
+	// TArray<FString> Dirs;
+ //    
+	// // 에디터에서 DataDirectories가 설정 ? 기본 경로를 사용
+	// if (DataDirectories.Num() == 0)
+	// {
+	// 	Dirs = {
+	// 		FPaths::ProjectContentDir() / TEXT("Data/Items"),
+	// 		FPaths::ProjectContentDir() / TEXT("Data/Weapons") // 필요에 따라 추가
+	// 	 };
+	// }
+	// else
+	// {
+	// 	for (const auto& D : DataDirectories)
+	// 	{
+	// 		Dirs.Add(D.Path);
+	// 	}
+	// }
+	//
+	// ItemDataMap.Reset();
+	// const int32 Files = UGtItemFactory::LoadItemDataFromDirs(Dirs, ItemDataMap);
+	// UE_LOG(LogTemp, Log, TEXT("[ItemManager] Loaded %d files, %d items"), Files, ItemDataMap.Num());
 }
 
 /*
@@ -77,4 +132,26 @@ void UGtItemManagerComponent::UseItem(int32 Index)
 	{
 		Inventory[Index]->UseItem();
 	}
+}
+
+AGtItemBase* UGtItemManagerComponent::SpawnItemByIdAt(const FString& ItemId, const FVector& Location, const FRotator& Rotation)
+{
+	UE_LOG(LogTemp, Warning, TEXT("[ItemTest] SpawnItemByIdAt('%s')"), *ItemId);
+
+	if (FGtItemData* Data = ItemDataMap.Find(ItemId))
+	{
+		if (AGtItemBase* Item = UGtItemFactory::CreateItem(*Data, GetWorld()))
+		{
+			Item->SetActorLocation(Location);
+			Item->SetActorRotation(Rotation);
+			UE_LOG(LogTemp, Warning, TEXT("[ItemTest] Spawned %s at %s"),
+				*ItemId, *Location.ToCompactString());
+			return Item;
+		}
+		UE_LOG(LogTemp, Error, TEXT("[ItemTest] CreateItem failed: %s"), *ItemId);
+		return nullptr;
+	}
+	UE_LOG(LogTemp, Error, TEXT("[ItemTest] Id not found: %s (Loaded=%d)"),
+		*ItemId, ItemDataMap.Num());
+	return nullptr;
 }

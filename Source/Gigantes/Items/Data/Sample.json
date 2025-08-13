@@ -14,6 +14,6 @@
     "ExplosionDelay": 0.0,
     "HealAmount": 0,
     "ItemTag": "Item.Weapon.Rifle",
-    "ClassPath": "/Game/Items/Blueprints/BP_GtRiffle.BP_GtRiffle_C"
+    "ClassPath": "/Game/Items/Blueprints/BP_GtRifle.BP_GtRifle_C"
   }
 ]
