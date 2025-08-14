@@ -6,7 +6,7 @@
 #include "GtHumanBase.h"
 #include "GtHeroCharacter.generated.h"
 
-class UGtEquipmentComponent;
+class UGtLoadoutComponent;
 class UGtItemManagerComponent;
 struct FInputActionValue;
 
@@ -45,6 +45,7 @@ public:
 	
 	USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	UGtHeroMovementComponent* GetHeroMovementComponent() const { return HeroMovementComponent; }
+	TSubclassOf<UAnimInstance> GetUnarmedAnimLayer() const { return UnarmedAnimLayer; }
 
 protected:
 	virtual void BeginPlay() override;
@@ -60,12 +61,20 @@ protected:
 	void Input_SecondaryAction(const FInputActionValue& InputActionValue);
 	void Input_Reload(const FInputActionValue& InputActionValue);
 
+	// 슬롯 제어를 위한 입력 핸들러
+	void Input_EquipSlot1(const FInputActionValue& InputActionValue);
+	void Input_EquipSlot2(const FInputActionValue& InputActionValue);
+	void Input_UseGrenadeSlot(const FInputActionValue& InputActionValue);
+	void Input_UseConsumableSlot(const FInputActionValue& InputActionValue);
 
 	UFUNCTION()
 	void OnLandedCallback(const FHitResult& Hit);
 	
 	UFUNCTION()
 	void OnCharacterStatusTagChanged(const FGameplayTag& StatusTag, bool bAdded);
+
+	UFUNCTION()
+	void OnEquipmentChanged(AGtItemBase* NewItem);
 
 	bool ShouldStartSlide() const;
 	void StartSlide();
@@ -102,12 +111,15 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ItemManager")
 	TObjectPtr<UGtItemManagerComponent> ItemManager;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Equipment")
-	TObjectPtr<UGtEquipmentComponent> EquipmentComponent;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Loadout")
+	TObjectPtr<UGtLoadoutComponent> LoadoutComponent;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UGtInputConfig> InputConfigDataAsset;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	TSubclassOf<UAnimInstance> UnarmedAnimLayer;
+	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Jump")
 	int32 MaxJumpCount = 2;
 	

@@ -37,8 +37,9 @@ protected:
 
 	bool GetCrosshairHitResult(FHitResult& OutHitResult) const;
 
+	// TODO : 추후 WeakObjectPtr로 변경 or 삭제후 Owner(Outer) 사용 고려
 	UPROPERTY()
-	AActor* WeaponOwner;
+	TObjectPtr<AActor> WeaponOwner;
     
 	// 테스트용 기본값
 	UPROPERTY(EditDefaultsOnly, Category = "Test Weapon")
@@ -61,4 +62,8 @@ protected:
     
 	FTimerHandle FireTimerHandle;
 	bool bCanFire = true;
+
+	// TODO: 테스트용 애니메이션 레이어
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	TSubclassOf<UAnimInstance> ArmedAnimLayer;
 };

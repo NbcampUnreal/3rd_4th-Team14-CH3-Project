@@ -15,6 +15,11 @@ namespace GtGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG(InputTag_SecondaryAction, "InputTag.SecondaryAction");
 	UE_DEFINE_GAMEPLAY_TAG(InputTag_Reload, "InputTag.Reload");
 	
+	UE_DEFINE_GAMEPLAY_TAG(InputTag_EquipSlot1, "InputTag.EquipSlot1");
+	UE_DEFINE_GAMEPLAY_TAG(InputTag_EquipSlot2, "InputTag.EquipSlot2");
+	UE_DEFINE_GAMEPLAY_TAG(InputTag_UseGrenade, "InputTag.UseGrenade");
+	UE_DEFINE_GAMEPLAY_TAG(InputTag_UseConsumable, "InputTag.UseConsumable");
+	
 	/** Status Tags */
 	UE_DEFINE_GAMEPLAY_TAG(Status_Action, "Status.Action");
 	UE_DEFINE_GAMEPLAY_TAG(Status_Action_WallRunning, "Status.Action.WallRunning");

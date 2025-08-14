@@ -5,9 +5,10 @@
 #include "Components/GtHeroMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Gigantes/GtGameplayTags.h"
-#include "Gigantes/Equipments/Components/GtEquipmentComponent.h"
+#include "Gigantes/Equipments/Components/GtLoadoutComponent.h"
 #include "Gigantes/Input/GtInputComponent.h"
 #include "Gigantes/Items/Manager/GtItemManagerComponent.h"
+#include "Test/TestGtGameplayTags.h"
 
 AGtHeroCharacter::AGtHeroCharacter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UGtHeroMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -29,7 +30,7 @@ AGtHeroCharacter::AGtHeroCharacter(const FObjectInitializer& ObjectInitializer)
 	FollowCamera->bUsePawnControlRotation = false;
 
 	ItemManager = CreateDefaultSubobject<UGtItemManagerComponent>(TEXT("ItemManager"));
-	EquipmentComponent = CreateDefaultSubobject<UGtEquipmentComponent>(TEXT("EquipmentComponent"));
+	LoadoutComponent = CreateDefaultSubobject<UGtLoadoutComponent>(TEXT("LoadoutComponent"));
 }
 
 // Called when the game starts or when spawned
@@ -43,6 +44,10 @@ void AGtHeroCharacter::BeginPlay()
 	if (HeroMovementComponent)
 	{
 		HeroMovementComponent->OnCapsuleSizeChanged.BindUObject(this, &AGtHeroCharacter::HandleCapsuleSizeChanged);
+	}
+	if (LoadoutComponent)
+	{
+		LoadoutComponent->OnEquipmentItemChanged.AddDynamic(this, &AGtHeroCharacter::OnEquipmentChanged);
 	}
 }
 
@@ -71,6 +76,11 @@ void AGtHeroCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_PrimaryAction, ETriggerEvent::Triggered, this, &ThisClass::Input_PrimaryAction);
 	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_SecondaryAction, ETriggerEvent::Triggered, this, &ThisClass::Input_SecondaryAction);
 	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_Reload, ETriggerEvent::Started, this, &ThisClass::Input_Reload);
+	
+	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_EquipSlot1, ETriggerEvent::Started, this, &ThisClass::Input_EquipSlot1);
+	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_EquipSlot2, ETriggerEvent::Started, this, &ThisClass::Input_EquipSlot2);
+	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_UseGrenade, ETriggerEvent::Started, this, &ThisClass::Input_UseGrenadeSlot);
+	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_UseConsumable, ETriggerEvent::Started, this, &ThisClass::Input_UseConsumableSlot);
 }
 
 void AGtHeroCharacter::Input_Move(const FInputActionValue& InputActionValue)
@@ -198,25 +208,57 @@ void AGtHeroCharacter::Input_PrimaryAction(const FInputActionValue& InputActionV
 		return; 
 	}
 	
-	if (EquipmentComponent)
+	if (LoadoutComponent)
 	{
-		EquipmentComponent->PrimaryAction();
+		LoadoutComponent->PrimaryAction();
 	}
 }
 
 void AGtHeroCharacter::Input_SecondaryAction(const FInputActionValue& InputActionValue)
 {
-	if (EquipmentComponent)
+	if (LoadoutComponent)
 	{
-		EquipmentComponent->SecondaryAction();
+		LoadoutComponent->SecondaryAction();
 	}
 }
 
 void AGtHeroCharacter::Input_Reload(const FInputActionValue& InputActionValue)
 {
-	if (EquipmentComponent)
+	if (LoadoutComponent)
 	{
-		EquipmentComponent->ReloadAction();
+		LoadoutComponent->ReloadAction();
+	}
+}
+
+void AGtHeroCharacter::Input_EquipSlot1(const FInputActionValue& InputActionValue)
+{
+	if (LoadoutComponent)
+	{
+		LoadoutComponent->ChangeActiveWeaponSlot(GtGameplayTags::Loadout_Slot_Weapon_Primary);
+	}
+}
+
+void AGtHeroCharacter::Input_EquipSlot2(const FInputActionValue& InputActionValue)
+{
+	if (LoadoutComponent)
+	{
+		LoadoutComponent->ChangeActiveWeaponSlot(GtGameplayTags::Loadout_Slot_Weapon_Secondary);
+	}
+}
+
+void AGtHeroCharacter::Input_UseGrenadeSlot(const FInputActionValue& InputActionValue)
+{
+	if (LoadoutComponent)
+	{
+		LoadoutComponent->UseItemInSlot(GtGameplayTags::Loadout_Slot_Grenade);
+	}
+}
+
+void AGtHeroCharacter::Input_UseConsumableSlot(const FInputActionValue& InputActionValue)
+{
+	if (LoadoutComponent)
+	{
+		LoadoutComponent->UseItemInSlot(GtGameplayTags::Loadout_Slot_Consumable);
 	}
 }
 
@@ -416,5 +458,24 @@ void AGtHeroCharacter::OnCharacterStatusTagChanged(const FGameplayTag& StatusTag
 	if (bIsWallRunTag && bAdded)
 	{
 		JumpCount = 0;
+	}
+}
+
+void AGtHeroCharacter::OnEquipmentChanged(AGtItemBase* NewItem)
+{
+	// NewItem이 nullptr이면 무기 해제 유효한 포인터이면 무기 장착 상태
+	bIsEquipped = (NewItem != nullptr);
+
+	if (bIsEquipped)
+	{
+		// 무기 장착 시 (Strafing 모드)
+		GetCharacterMovement()->bOrientRotationToMovement = false;
+		bUseControllerRotationYaw = true;
+	}
+	else
+	{
+		// 무기 해제 시 (일반 이동 모드)
+		GetCharacterMovement()->bOrientRotationToMovement = true;
+		bUseControllerRotationYaw = false;
 	}
 }

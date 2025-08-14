@@ -3,6 +3,7 @@
 
 #include "GtTestWeaponBase.h"
 
+#include "GameFramework/Character.h"
 #include "Gigantes/Gameplay/Damage/GtDamageable.h"
 #include "Gigantes/Physics/GtCollisionChannels.h"
 
@@ -40,12 +41,32 @@ void AGtTestWeaponBase::OnEquipped_Implementation(AActor* NewOwner)
     CurrentAmmo = TestMaxAmmo;
     bCanFire = true;
     
+    if (ACharacter* OwnerCharacter = Cast<ACharacter>(NewOwner))
+    {
+        // 애님 레이어가 유효한지 확인하고 연결합니다.
+        if (ArmedAnimLayer)
+        {
+            OwnerCharacter->GetMesh()->GetAnimInstance()->LinkAnimClassLayers(ArmedAnimLayer);
+            UE_LOG(LogTemp, Log, TEXT("Armed Anim Layer Linked."));
+        }
+    }
+    
     UE_LOG(LogTemp, Warning, TEXT("[TestWeapon] Equipped to %s"), 
         NewOwner ? *NewOwner->GetName() : TEXT("Unknown"));
 }
 
 void AGtTestWeaponBase::OnUnequipped_Implementation()
 {
+    if (ACharacter* OwnerCharacter = Cast<ACharacter>(WeaponOwner))
+    {
+        // 애님 레이어가 유효한지 확인하고 연결을 해제합니다.
+        if (ArmedAnimLayer)
+        {
+            OwnerCharacter->GetMesh()->GetAnimInstance()->UnlinkAnimClassLayers(ArmedAnimLayer);
+            UE_LOG(LogTemp, Log, TEXT("Armed Anim Layer Unlinked."));
+        }
+    }
+
     WeaponOwner = nullptr;
     GetWorld()->GetTimerManager().ClearTimer(FireTimerHandle);
     
