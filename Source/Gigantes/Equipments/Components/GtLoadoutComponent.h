@@ -56,8 +56,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Loadout")
 	void UseItemInSlot(const FGameplayTag& SlotTag);
 
-	void PrimaryAction();
-	void SecondaryAction();
+	void PrimaryActionPressed();
+	void PrimaryActionReleased();
+	void SecondaryActionPressed();
+	void SecondaryActionReleased();
 	void ReloadAction();
 
 	UFUNCTION(BlueprintPure, Category = "Loadout")

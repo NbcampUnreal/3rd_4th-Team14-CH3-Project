@@ -59,8 +59,10 @@ protected:
 	void Input_Crouch(const FInputActionValue& InputActionValue);
 	void Input_SprintStart(const FInputActionValue& InputActionValue);
 	void Input_SprintStop(const FInputActionValue& InputActionValue);
-	void Input_PrimaryAction(const FInputActionValue& InputActionValue);
-	void Input_SecondaryAction(const FInputActionValue& InputActionValue);
+	void Input_PrimaryActionPressed(const FInputActionValue& InputActionValue);
+	void Input_PrimaryActionReleased(const FInputActionValue& InputActionValue);
+	void Input_SecondaryActionPressed(const FInputActionValue& InputActionValue);
+	void Input_SecondaryActionReleased(const FInputActionValue& InputActionValue);
 	void Input_Reload(const FInputActionValue& InputActionValue);
 
 	// 슬롯 제어를 위한 입력 핸들러

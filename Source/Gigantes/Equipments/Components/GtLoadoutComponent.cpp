@@ -8,6 +8,7 @@
 #include "Gigantes/Character/Test/TestGtGameplayTags.h"
 #include "Gigantes/GtGameplayTags.h"
 #include "Gigantes/Character/GtHeroCharacter.h"
+#include "Gigantes/Character/Test/GtTestWeaponBase.h"
 
 
 UGtLoadoutComponent::UGtLoadoutComponent()
@@ -190,6 +191,10 @@ void UGtLoadoutComponent::ActivateNewWeaponSlot(const FGameplayTag& SlotTag)
         if (TestWeaponClass)
         {
             NewWeapon = GetWorld()->SpawnActor<AGtWeaponItem>(TestWeaponClass);
+            if (AGtTestWeaponBase* TestWeapon = Cast<AGtTestWeaponBase>(NewWeapon))
+            {
+                TestWeapon->InitializeTestWeapon();
+            }
         }
     }
     else
@@ -254,7 +259,7 @@ void UGtLoadoutComponent::UseItemInSlot(const FGameplayTag& SlotTag)
         // 현재는 IGtEquippable의 PrimaryAction을 사용의 의미로 호출.
         if(TempItem->Implements<UGtEquippable>())
         {
-            IGtEquippable::Execute_ExecutePrimaryAction(TempItem);
+            //IGtEquippable::Execute_ExecutePrimaryAction(TempItem);
             
             // 사용 후 슬롯의 아이템 수량 감소
             // TargetSlot->EquippedItemData.Quantity--;
@@ -271,19 +276,35 @@ void UGtLoadoutComponent::UseItemInSlot(const FGameplayTag& SlotTag)
     }
 }
 
-void UGtLoadoutComponent::PrimaryAction()
+void UGtLoadoutComponent::PrimaryActionPressed()
 {
     if (CurrentEquippedWeapon && CurrentEquippedWeapon->Implements<UGtEquippable>())
     {
-        IGtEquippable::Execute_ExecutePrimaryAction(CurrentEquippedWeapon);
+        IGtEquippable::Execute_ExecutePrimaryActionPressed(CurrentEquippedWeapon);
     }
 }
 
-void UGtLoadoutComponent::SecondaryAction()
+void UGtLoadoutComponent::PrimaryActionReleased()
 {
     if (CurrentEquippedWeapon && CurrentEquippedWeapon->Implements<UGtEquippable>())
     {
-        IGtEquippable::Execute_ExecuteSecondaryAction(CurrentEquippedWeapon);
+        IGtEquippable::Execute_ExecutePrimaryActionReleased(CurrentEquippedWeapon);
+    }
+}
+
+void UGtLoadoutComponent::SecondaryActionPressed()
+{
+    if (CurrentEquippedWeapon && CurrentEquippedWeapon->Implements<UGtEquippable>())
+    {
+        IGtEquippable::Execute_ExecuteSecondaryActionPressed(CurrentEquippedWeapon);
+    }
+}
+
+void UGtLoadoutComponent::SecondaryActionReleased()
+{
+    if (CurrentEquippedWeapon && CurrentEquippedWeapon->Implements<UGtEquippable>())
+    {
+        IGtEquippable::Execute_ExecuteSecondaryActionReleased(CurrentEquippedWeapon);
     }
 }
 

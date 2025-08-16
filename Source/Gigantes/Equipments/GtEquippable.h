@@ -28,12 +28,18 @@ public:
 
 	// 주 공격 (마우스 좌클릭)
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Equippable")
-	void ExecutePrimaryAction();
+	void ExecutePrimaryActionPressed();
 
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Equippable")
+	void ExecutePrimaryActionReleased();
+	
 	// 보조 공격 (마우스 우클릭)
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Equippable")
-	void ExecuteSecondaryAction();
+	void ExecuteSecondaryActionPressed();
 
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	void ExecuteSecondaryActionReleased();
+	
 	// 재장전
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Equippable")
 	void ExecuteReloadAction();

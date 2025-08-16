@@ -3,8 +3,10 @@
 
 #include "GtTestWeaponBase.h"
 
+#include "TestGtGameplayTags.h"
 #include "Components/SphereComponent.h"
-#include "GameFramework/Character.h"
+#include "Gigantes/GtGameplayTags.h"
+#include "Gigantes/Character/GtHeroCharacter.h"
 #include "Gigantes/Gameplay/Damage/GtDamageable.h"
 #include "Gigantes/Physics/GtCollisionChannels.h"
 
@@ -25,7 +27,7 @@ void AGtTestWeaponBase::InitializeTestWeapon()
     // 테스트 데이터 직접 설정
     ItemData.ItemId = "test_rifle_01";
     ItemData.ItemName = "Test Rifle";
-    ItemData.ItemTag = FGameplayTag::RequestGameplayTag("Item.Weapon.TestRifle");
+    ItemData.ItemTag = GtGameplayTags::Item_Weapon_TestRifle;
     ItemData.Damage = 30;
     ItemData.MaxAmmo = 30;
     ItemData.AmmoInMagazine = 30;
@@ -38,6 +40,20 @@ void AGtTestWeaponBase::InitializeTestWeapon()
     AmmoInMagazine = ItemData.AmmoInMagazine;
     FireRate = ItemData.FireRate;
     ReloadRate = ItemData.ReloadTime;
+
+    // 테스트용 조준 설정
+    bCanAim = true;
+    AimMovementSpeedMultiplier = 0.45f;
+    
+    // 조준 카메라 모디파이어 설정
+    AimCameraModifier.Priority = 100;
+    AimCameraModifier.FOV_Op = EGtCameraValueOperation::Override;
+    AimCameraModifier.FOV = 60.0f;
+    AimCameraModifier.SpringArmLength_Op = EGtCameraValueOperation::Additive;
+    AimCameraModifier.SpringArmLength = -40.0f;
+    AimCameraModifier.CameraOffsetZ_Op = EGtCameraValueOperation::Additive;
+    AimCameraModifier.CameraOffsetZ = 0.0f;
+    AimCameraModifier.TransitionSpeed = 15.0f;
 }
 
 void AGtTestWeaponBase::OnEquipped_Implementation(AActor* NewOwner)
@@ -48,7 +64,6 @@ void AGtTestWeaponBase::OnEquipped_Implementation(AActor* NewOwner)
     
     if (ACharacter* OwnerCharacter = Cast<ACharacter>(NewOwner))
     {
-        // 애님 레이어가 유효한지 확인하고 연결합니다.
         if (ArmedAnimLayer)
         {
             OwnerCharacter->GetMesh()->GetAnimInstance()->LinkAnimClassLayers(ArmedAnimLayer);
@@ -62,9 +77,19 @@ void AGtTestWeaponBase::OnEquipped_Implementation(AActor* NewOwner)
 
 void AGtTestWeaponBase::OnUnequipped_Implementation()
 {
+    if (GetWorld())
+    {
+        GetWorld()->GetTimerManager().ClearTimer(AutoFireTimerHandle);
+    }
+    
+    bFireInputPressed = false;
+    
     if (ACharacter* OwnerCharacter = Cast<ACharacter>(WeaponOwner))
     {
-        // 애님 레이어가 유효한지 확인하고 연결을 해제합니다.
+        if (bIsAiming)
+        {
+            StopAiming();
+        }
         if (ArmedAnimLayer)
         {
             OwnerCharacter->GetMesh()->GetAnimInstance()->UnlinkAnimClassLayers(ArmedAnimLayer);
@@ -78,15 +103,133 @@ void AGtTestWeaponBase::OnUnequipped_Implementation()
     UE_LOG(LogTemp, Warning, TEXT("[TestWeapon] Unequipped"));
 }
 
-void AGtTestWeaponBase::ExecutePrimaryAction_Implementation()
+void AGtTestWeaponBase::ExecutePrimaryActionPressed_Implementation()
 {
-    TestFire();
+    bFireInputPressed = true;
+    
+    switch (FireMode)
+    {
+    case EGtFireMode::Single:
+        // 단발 모드: bCanFire로 쿨다운을 직접 제어
+        if (bCanFire)
+        {
+            bCanFire = false;
+            TestFire(); 
+            
+            // 쿨다운 타이머 설정
+            GetWorld()->GetTimerManager().SetTimer(
+                FireTimerHandle,
+                [this]() { bCanFire = true; },
+                TestFireRate,
+                false
+            );
+        }
+        break;
+        
+    case EGtFireMode::Automatic:
+        // 자동 모드: 반복 타이머가 연사 속도를 제어하므로 bCanFire가 필요 없음
+        TestFire(); // 첫 발 즉시 발사
+        if (GetWorld() && TestFireRate > 0.0f)
+        {
+            GetWorld()->GetTimerManager().SetTimer(
+                AutoFireTimerHandle,
+                this,
+                &AGtTestWeaponBase::TestFire,
+                TestFireRate,
+                true  
+            );
+        }
+        break;
+        
+    case EGtFireMode::Burst:
+        // 점사 모드 (선택사항)
+        // TODO: 3발씩 발사하는 로직
+        break;
+    }
 }
 
-void AGtTestWeaponBase::ExecuteSecondaryAction_Implementation()
+void AGtTestWeaponBase::ExecutePrimaryActionReleased_Implementation()
 {
-    // 조준 테스트
-    UE_LOG(LogTemp, Warning, TEXT("[TestWeapon] Aiming"));
+    bFireInputPressed = false;
+    
+    // 자동 발사 타이머 정지
+    if (FireMode == EGtFireMode::Automatic)
+    {
+        if (GetWorld())
+        {
+            GetWorld()->GetTimerManager().ClearTimer(AutoFireTimerHandle);
+        }
+    }
+}
+
+void AGtTestWeaponBase::ExecuteSecondaryActionPressed_Implementation()
+{
+    if (bUseHoldToAim)
+    {
+        // 홀딩 모드: 누를 때 시작
+        if (!bIsAiming)
+        {
+            StartAiming();
+        }
+    }
+    else
+    {
+        // 토글 모드: 누를 때 토글
+        if (bIsAiming)
+        {
+            StopAiming();
+        }
+        else
+        {
+            StartAiming();
+        }
+    }
+}
+
+void AGtTestWeaponBase::ExecuteSecondaryActionReleased_Implementation()
+{
+    if (bUseHoldToAim && bIsAiming)
+    {
+        // 홀딩 모드에서만 뗄 때 해제
+        StopAiming();
+    }
+    // 토글 모드에서는 Release 시 아무것도 안 함
+}
+
+void AGtTestWeaponBase::StartAiming()
+{
+    // TODO: 추후 ItemData.bCanAim으로 체크 변경
+    if (!bCanAim || !WeaponOwner)
+        return;
+
+    AGtHeroCharacter* Hero = Cast<AGtHeroCharacter>(WeaponOwner);
+    if (!Hero)
+    {
+        return;
+    }
+    
+    bIsAiming = true;
+
+    Hero->AddStatusTag(GtGameplayTags::Status_Action_Aiming);
+    Hero->bUseAimOffset = true;
+    
+    UE_LOG(LogTemp, Log, TEXT("[TestWeapon] Start Aiming"));
+}
+
+void AGtTestWeaponBase::StopAiming()
+{
+    if (!bIsAiming || !WeaponOwner)
+        return;
+
+    bIsAiming = false;
+    
+    if (AGtHeroCharacter* Hero = Cast<AGtHeroCharacter>(WeaponOwner))
+    {
+        Hero->RemoveStatusTag(GtGameplayTags::Status_Action_Aiming);
+        Hero->bUseAimOffset = false;
+    }
+    
+    UE_LOG(LogTemp, Log, TEXT("[TestWeapon] Stop Aiming"));
 }
 
 void AGtTestWeaponBase::ExecuteReloadAction_Implementation()
@@ -94,11 +237,30 @@ void AGtTestWeaponBase::ExecuteReloadAction_Implementation()
     TestReload();
 }
 
+bool AGtTestWeaponBase::GetCameraModifierForTag_Implementation(const FGameplayTag& ActionTag,
+    FGtCameraModifier& OutModifier) const
+{
+    // 요청받은 태그가 조준 태그이고 이 무기가 조준을 할 수 있다면
+    if (ActionTag == GtGameplayTags::Status_Action_Aiming && bCanAim)
+    {
+        // 무기가 가진 조준용 모디파이어를 넘겨주고 true 반환
+        OutModifier = AimCameraModifier;
+        return true;
+    }
+    // 그 외의 경우에는 이 무기는 관련 모디파이어가 없으므로 false 반환
+    return false;
+}
+
 void AGtTestWeaponBase::TestFire()
 {
-    if (!bCanFire || CurrentAmmo <= 0 || !WeaponOwner)
+    // 자동 발사 중 탄약이 떨어지면 타이머 정지
+    if (CurrentAmmo <= 0 || !WeaponOwner)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[TestWeapon] Cannot fire"));
+        if (FireMode == EGtFireMode::Automatic)
+        {
+            GetWorld()->GetTimerManager().ClearTimer(AutoFireTimerHandle);
+        }
+        UE_LOG(LogTemp, Warning, TEXT("[TestWeapon] Cannot fire: No Ammo or Owner"));
         return;
     }
 
@@ -108,8 +270,7 @@ void AGtTestWeaponBase::TestFire()
         return;
     
     CurrentAmmo--;
-    bCanFire = false;
-    
+
     // 크로스헤어 LineTrace 결과를 그대로 사용
     FHitResult HitResult;
     bool bHit = GetCrosshairHitResult(HitResult);
@@ -154,11 +315,6 @@ void AGtTestWeaponBase::TestFire()
     
     UE_LOG(LogTemp, Warning, TEXT("[TestWeapon] Fire! Ammo: %d/%d"), CurrentAmmo, TestMaxAmmo);
     
-    // 발사 쿨다운
-    GetWorld()->GetTimerManager().SetTimer(FireTimerHandle, [this]()
-    {
-        bCanFire = true;
-    }, TestFireRate, false);
 }
 
 void AGtTestWeaponBase::TestReload()

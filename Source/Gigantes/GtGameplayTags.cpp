@@ -28,5 +28,6 @@ namespace GtGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG(Status_Action_Crouching, "Status.Action.Crouching");
 	UE_DEFINE_GAMEPLAY_TAG(Status_Action_Sliding, "Status.Action.Sliding");
 	UE_DEFINE_GAMEPLAY_TAG(Status_Action_Sprinting, "Status.Action.Sprinting");
+	UE_DEFINE_GAMEPLAY_TAG(Status_Action_Aiming, "Status.Action.Aiming");
 	UE_DEFINE_GAMEPLAY_TAG(Status_Dead, "Status.Dead");
 }

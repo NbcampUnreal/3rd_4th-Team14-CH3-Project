@@ -75,8 +75,11 @@ void AGtHeroCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_Crouch, ETriggerEvent::Started, this, &ThisClass::Input_Crouch);
 	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_Sprint, ETriggerEvent::Started, this, &ThisClass::Input_SprintStart);
 	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_Sprint, ETriggerEvent::Completed, this, &ThisClass::Input_SprintStop);
-	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_PrimaryAction, ETriggerEvent::Triggered, this, &ThisClass::Input_PrimaryAction);
-	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_SecondaryAction, ETriggerEvent::Triggered, this, &ThisClass::Input_SecondaryAction);
+	
+	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_PrimaryAction, ETriggerEvent::Started, this, &ThisClass::Input_PrimaryActionPressed);
+	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_PrimaryAction, ETriggerEvent::Completed, this, &ThisClass::Input_PrimaryActionReleased);
+	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_SecondaryAction, ETriggerEvent::Started, this, &ThisClass::Input_SecondaryActionPressed);
+	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_SecondaryAction, ETriggerEvent::Completed, this, &ThisClass::Input_SecondaryActionReleased);
 	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_Reload, ETriggerEvent::Started, this, &ThisClass::Input_Reload);
 	
 	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_EquipSlot1, ETriggerEvent::Started, this, &ThisClass::Input_EquipSlot1);
@@ -202,7 +205,7 @@ void AGtHeroCharacter::Input_SprintStop(const FInputActionValue& InputActionValu
 	UnSprint();
 }
 
-void AGtHeroCharacter::Input_PrimaryAction(const FInputActionValue& InputActionValue)
+void AGtHeroCharacter::Input_PrimaryActionPressed(const FInputActionValue& InputActionValue)
 {
 	// TODO : 행동 가능 상태 체크를 어떻게 구현할지 고민
 	if (HasStatusTag(GtGameplayTags::Status_Dead))
@@ -212,15 +215,49 @@ void AGtHeroCharacter::Input_PrimaryAction(const FInputActionValue& InputActionV
 	
 	if (LoadoutComponent)
 	{
-		LoadoutComponent->PrimaryAction();
+		LoadoutComponent->PrimaryActionPressed();
 	}
 }
 
-void AGtHeroCharacter::Input_SecondaryAction(const FInputActionValue& InputActionValue)
+void AGtHeroCharacter::Input_PrimaryActionReleased(const FInputActionValue& InputActionValue)
 {
+	// TODO : 행동 가능 상태 체크를 어떻게 구현할지 고민
+	if (HasStatusTag(GtGameplayTags::Status_Dead))
+	{
+		return; 
+	}
+	
 	if (LoadoutComponent)
 	{
-		LoadoutComponent->SecondaryAction();
+		LoadoutComponent->PrimaryActionReleased();
+	}
+}
+
+void AGtHeroCharacter::Input_SecondaryActionPressed(const FInputActionValue& InputActionValue)
+{
+	// TODO : 행동 가능 상태 체크를 어떻게 구현할지 고민
+	if (HasStatusTag(GtGameplayTags::Status_Dead))
+	{
+		return; 
+	}
+	
+	if (LoadoutComponent)
+	{
+		LoadoutComponent->SecondaryActionPressed();
+	}
+}
+
+void AGtHeroCharacter::Input_SecondaryActionReleased(const FInputActionValue& InputActionValue)
+{
+	// TODO : 행동 가능 상태 체크를 어떻게 구현할지 고민
+	if (HasStatusTag(GtGameplayTags::Status_Dead))
+	{
+		return; 
+	}
+	
+	if (LoadoutComponent)
+	{
+		LoadoutComponent->SecondaryActionReleased();
 	}
 }
 
