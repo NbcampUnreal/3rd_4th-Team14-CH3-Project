@@ -6,10 +6,11 @@
 #include "GtHumanBase.h"
 #include "GtHeroCharacter.generated.h"
 
-class UGtLoadoutComponent;
-class UGtItemManagerComponent;
 struct FInputActionValue;
 
+class AGtWeaponItem;
+class UGtLoadoutComponent;
+class UGtItemManagerComponent;
 class UGtHeroMovementComponent;
 class UCameraComponent;
 class USpringArmComponent;
@@ -45,6 +46,7 @@ public:
 	
 	USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	UGtHeroMovementComponent* GetHeroMovementComponent() const { return HeroMovementComponent; }
+	UGtLoadoutComponent* GetLoadoutComponent() const { return LoadoutComponent; }
 	TSubclassOf<UAnimInstance> GetUnarmedAnimLayer() const { return UnarmedAnimLayer; }
 
 protected:
@@ -74,7 +76,7 @@ protected:
 	void OnCharacterStatusTagChanged(const FGameplayTag& StatusTag, bool bAdded);
 
 	UFUNCTION()
-	void OnEquipmentChanged(AGtItemBase* NewItem);
+	void OnEquipmentChanged(AGtWeaponItem* NewWeapon);
 
 	bool ShouldStartSlide() const;
 	void StartSlide();
@@ -97,6 +99,8 @@ public:
 	// TEMP: 애니메이션 테스트용
 	UPROPERTY(BlueprintReadWrite, Category = "Character|Test")
 	bool bUseAimOffset = false;
+
+	FVector JointTargetLocation = FVector::ZeroVector;
 	
 protected:
 	UPROPERTY()

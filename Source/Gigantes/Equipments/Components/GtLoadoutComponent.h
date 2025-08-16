@@ -8,9 +8,6 @@
 class AGtHeroCharacter;
 class AGtWeaponItem;
 class UGtItemManagerComponent;
-class AGtItemBase;
-
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEquipmentItemChanged, AGtItemBase*, NewItem);
 
 USTRUCT(BlueprintType)
 struct FGtLoadoutSlot
@@ -28,6 +25,10 @@ struct FGtLoadoutSlot
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Equipment Slot")
 	bool bHasItem = false;
 };
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEquipmentWeaponChanged, AGtWeaponItem*, NewWeapon);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoadoutSlotChanged, const FGtLoadoutSlot&, UpdatedSlotInfo);
+
 
 /**
  * 플레이어의 퀵슬롯(무기, 수류탄, 소모품)을 통합 관리하는 컴포넌트
@@ -49,23 +50,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Loadout")
 	void UnequipItemFromSlot(const FGameplayTag& SlotTag);
 
-	/**
-	 * 
-	 */
 	UFUNCTION(BlueprintCallable, Category = "Loadout")
 	void ChangeActiveWeaponSlot(const FGameplayTag& NewActiveSlotTag);
 
 	UFUNCTION(BlueprintCallable, Category = "Loadout")
 	void UseItemInSlot(const FGameplayTag& SlotTag);
 
-	// --- 입력 처리 위임 API --- //
 	void PrimaryAction();
 	void SecondaryAction();
 	void ReloadAction();
 
-	// --- 정보 접근 API --- //
 	UFUNCTION(BlueprintPure, Category = "Loadout")
-	AGtItemBase* GetCurrentEquippedItem() const { return CurrentEquippedItem; }
+	AGtWeaponItem* GetCurrentEquippedWeapon() const { return CurrentEquippedWeapon; }
 	
 	// TODO : 테스트 코드로써 삭제 필요
 	UFUNCTION(BlueprintCallable, Category = "Equipment")
@@ -82,9 +78,13 @@ private:
 	FGtLoadoutSlot* FindSlotByTag(const FGameplayTag& SlotTag);
 
 public:
+	// 캐릭터 애니메이션 등 장비 관련 업데이트를 위한 델리게이트
 	UPROPERTY(BlueprintAssignable, Category = "Loadout")
-	FOnEquipmentItemChanged OnEquipmentItemChanged;
+	FOnEquipmentWeaponChanged OnEquipmentWeaponChanged;
 
+	// UI 처리에 사용할 슬롯 정보 업데이트를 위한 델리게이트
+	UPROPERTY(BlueprintAssignable, Category = "Loadout")
+	FOnLoadoutSlotChanged OnLoadoutSlotChanged;
 private:
 	
 	// TODO : 테스트용 무기 클래스
@@ -96,7 +96,7 @@ private:
 	
 	// 현재 관리중인 아이템
 	UPROPERTY()
-	TObjectPtr<AGtItemBase> CurrentEquippedItem = nullptr;
+	TObjectPtr<AGtWeaponItem> CurrentEquippedWeapon = nullptr;
 
 	UPROPERTY()
 	FGameplayTag ActiveWeaponSlotTag;

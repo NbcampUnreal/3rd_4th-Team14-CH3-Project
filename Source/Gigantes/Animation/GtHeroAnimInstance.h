@@ -4,6 +4,7 @@
 #include "GtBaseAnimInstance.h"
 #include "GtHeroAnimInstance.generated.h"
 
+class AGtWeaponItem;
 class AGtHeroCharacter;
 
 struct FGtHeroAnimInstanceProxy : public FGtBaseAnimInstanceProxy
@@ -19,6 +20,15 @@ struct FGtHeroAnimInstanceProxy : public FGtBaseAnimInstanceProxy
 	// TEMP: 애니메이션 테스트용
 	bool bCachedIsEquipped;
 	bool bCachedUseAimOffset;
+
+	FVector CachedJointTargetLocation;
+	TWeakObjectPtr<USkeletalMeshComponent> CachedWeaponItemMesh;
+	TWeakObjectPtr<USkeletalMeshComponent> CachedCharacterMesh;
+
+private:
+	void UpdateAimOffsetData(const AGtHeroCharacter* HeroCharacter);
+	void UpdateMovementData(const AGtHeroCharacter* HeroCharacter);
+	void UpdateWeaponData(const AGtHeroCharacter* HeroCharacter);
 };
 
 UCLASS()
@@ -32,6 +42,12 @@ protected:
 	virtual FAnimInstanceProxy* CreateAnimInstanceProxy() override;
 	virtual void DestroyAnimInstanceProxy(FAnimInstanceProxy* InProxy) override;
 
+private:
+	void UpdateMovementStates(const FGtHeroAnimInstanceProxy& Proxy);
+	void UpdateAimOffsets(const FGtHeroAnimInstanceProxy& Proxy);
+	void UpdateWeaponStates(const FGtHeroAnimInstanceProxy& Proxy);
+	void UpdateHandIK(const FGtHeroAnimInstanceProxy& Proxy);
+	
 public:
 	UPROPERTY(BlueprintReadOnly, Category = "AimOffset")
 	float AimOffsetPitch;
@@ -61,4 +77,10 @@ public:
 	// TEMP: 애니메이션 테스트용
 	UPROPERTY(BlueprintReadOnly, Category = "Test")
 	bool bUseAimOffset;
+
+	UPROPERTY(BlueprintReadOnly, Category = "HandBoneIK")
+	FVector JointTargetLocation = FVector::ZeroVector;
+
+	UPROPERTY(BlueprintReadOnly, Category = "HandBoneIK")
+	FTransform LeftHandTransform = FTransform::Identity;
 };

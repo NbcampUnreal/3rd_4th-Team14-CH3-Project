@@ -92,7 +92,7 @@ public:
 	FOnStatusTagChanged OnStatusTagChanged;
 
 	UFUNCTION(BlueprintCallable, Category = "Status")
-	const FGameplayTagContainer& GetStatusTags() { return StatusTags; };
+	const FGameplayTagContainer& GetStatusTags() const { return StatusTags; };
 	
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Status")

@@ -7,6 +7,7 @@
 #include "Gigantes/Items/Weapons/GtWeaponItem.h"
 #include "GtTestWeaponBase.generated.h"
 
+class USphereComponent;
 /**
  * 테스트 전용 무기 베이스 클래스
  * TODO: 정식 무기 시스템 완성 후 제거
@@ -30,7 +31,15 @@ public:
 	virtual void ExecuteSecondaryAction_Implementation() override;
 	virtual void ExecuteReloadAction_Implementation() override;
 
+	USkeletalMeshComponent* GetWeaponMesh() const { return WeaponMesh; }
+
 protected:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Sphere")
+	TObjectPtr<USphereComponent> Sphere;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh")
+	TObjectPtr<USkeletalMeshComponent> WeaponMesh;
+	
 	// 테스트용 간단한 발사 로직
 	virtual void TestFire();
 	virtual void TestReload();

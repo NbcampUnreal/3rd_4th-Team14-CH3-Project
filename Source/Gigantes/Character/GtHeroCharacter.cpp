@@ -29,7 +29,9 @@ AGtHeroCharacter::AGtHeroCharacter(const FObjectInitializer& ObjectInitializer)
 	FollowCamera->SetupAttachment(CameraBoom);
 	FollowCamera->bUsePawnControlRotation = false;
 
+	// TODO : 플레이어 컨트롤러로 이전 고민
 	ItemManager = CreateDefaultSubobject<UGtItemManagerComponent>(TEXT("ItemManager"));
+	
 	LoadoutComponent = CreateDefaultSubobject<UGtLoadoutComponent>(TEXT("LoadoutComponent"));
 }
 
@@ -47,7 +49,7 @@ void AGtHeroCharacter::BeginPlay()
 	}
 	if (LoadoutComponent)
 	{
-		LoadoutComponent->OnEquipmentItemChanged.AddDynamic(this, &AGtHeroCharacter::OnEquipmentChanged);
+		LoadoutComponent->OnEquipmentWeaponChanged.AddDynamic(this, &AGtHeroCharacter::OnEquipmentChanged);
 	}
 }
 
@@ -461,21 +463,25 @@ void AGtHeroCharacter::OnCharacterStatusTagChanged(const FGameplayTag& StatusTag
 	}
 }
 
-void AGtHeroCharacter::OnEquipmentChanged(AGtItemBase* NewItem)
+void AGtHeroCharacter::OnEquipmentChanged(AGtWeaponItem* NewWeapon)
 {
-	// NewItem이 nullptr이면 무기 해제 유효한 포인터이면 무기 장착 상태
-	bIsEquipped = (NewItem != nullptr);
+	// NewWeapon이 nullptr이면 무기 해제/유효한 포인터이면 무기 장착 상태
+	bIsEquipped = (NewWeapon != nullptr);
 
 	if (bIsEquipped)
 	{
 		// 무기 장착 시 (Strafing 모드)
 		GetCharacterMovement()->bOrientRotationToMovement = false;
 		bUseControllerRotationYaw = true;
+
+		// TODO : 임시 코드로써 추후 무기 데이터에서 JointTargetLocation = WeaponItem->GetJointTargetLocation() 와 같이 가져오도록 수정
+		JointTargetLocation = FVector(20.0, 45.0, -90.0);
 	}
 	else
 	{
 		// 무기 해제 시 (일반 이동 모드)
 		GetCharacterMovement()->bOrientRotationToMovement = true;
 		bUseControllerRotationYaw = false;
+		JointTargetLocation = FVector::ZeroVector;
 	}
 }

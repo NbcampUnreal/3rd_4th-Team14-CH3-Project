@@ -3,6 +3,7 @@
 
 #include "GtTestWeaponBase.h"
 
+#include "Components/SphereComponent.h"
 #include "GameFramework/Character.h"
 #include "Gigantes/Gameplay/Damage/GtDamageable.h"
 #include "Gigantes/Physics/GtCollisionChannels.h"
@@ -13,6 +14,10 @@ AGtTestWeaponBase::AGtTestWeaponBase()
     PrimaryActorTick.bCanEverTick = false;
     CurrentAmmo = TestMaxAmmo;
 
+    Sphere = CreateDefaultSubobject<USphereComponent>(TEXT("Sphere"));
+    
+    WeaponMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WeaponMesh"));
+    WeaponMesh->SetupAttachment(Sphere);
 }
 
 void AGtTestWeaponBase::InitializeTestWeapon()

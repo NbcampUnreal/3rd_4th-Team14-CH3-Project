@@ -37,10 +37,10 @@ void UGtLoadoutComponent::BeginPlay()
 
 void UGtLoadoutComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-    if(CurrentEquippedItem)
+    if(CurrentEquippedWeapon)
     {
-        CurrentEquippedItem->Destroy();
-        CurrentEquippedItem = nullptr;
+        CurrentEquippedWeapon->Destroy();
+        CurrentEquippedWeapon = nullptr;
     }
     Super::EndPlay(EndPlayReason);
 }
@@ -76,6 +76,8 @@ void UGtLoadoutComponent::EquipItemToSlot(const FGtItemData& ItemData, const FGa
             ChangeActiveWeaponSlot(SlotTag);
         }
     }
+
+    OnLoadoutSlotChanged.Broadcast(*TargetSlot);
 }
 
 void UGtLoadoutComponent::UnequipItemFromSlot(const FGameplayTag& SlotTag)
@@ -91,6 +93,8 @@ void UGtLoadoutComponent::UnequipItemFromSlot(const FGameplayTag& SlotTag)
 
     TargetSlot->bHasItem = false;
     TargetSlot->EquippedItemData = FGtItemData();
+
+    OnLoadoutSlotChanged.Broadcast(*TargetSlot);
 }
 
 void UGtLoadoutComponent::ChangeActiveWeaponSlot(const FGameplayTag& NewActiveSlotTag)
@@ -98,6 +102,11 @@ void UGtLoadoutComponent::ChangeActiveWeaponSlot(const FGameplayTag& NewActiveSl
     const FGtLoadoutSlot* TargetSlot = FindSlotByTag(NewActiveSlotTag);
     if (!TargetSlot || !TargetSlot->bHasItem)
     {
+        return;
+    }
+    if (!TargetSlot->SlotTag.MatchesTag(GtGameplayTags::Loadout_Slot_Weapon))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Cannot activate non-weapon slot as active weapon."));
         return;
     }
 
@@ -121,19 +130,19 @@ void UGtLoadoutComponent::ChangeActiveWeaponSlot(const FGameplayTag& NewActiveSl
 
 void UGtLoadoutComponent::DeactivateCurrentWeaponSlot()
 {
-    if (!CurrentEquippedItem) return;
+    if (!CurrentEquippedWeapon) return;
 
     FGtLoadoutSlot* CurrentSlot = FindSlotByTag(ActiveWeaponSlotTag);
     if (CurrentSlot)
     {
         // 핵심: 파괴 전, 액터의 현재 상태(남은 총알 등)를 데이터 슬롯에 저장
-        // CurrentSlot->EquippedItemData = CurrentEquippedItem->GetItemData();
+        // CurrentSlot->EquippedItemData = CurrentEquippedWeapon->GetItemData();
     }
     
     // TODO : 구조 변경할 수 있음
-    if (CurrentEquippedItem->Implements<UGtEquippable>())
+    if (CurrentEquippedWeapon->Implements<UGtEquippable>())
     {
-        IGtEquippable::Execute_OnUnequipped(CurrentEquippedItem);
+        IGtEquippable::Execute_OnUnequipped(CurrentEquippedWeapon);
     }
 
     // 장착 해제시 장착 해제 애니메이션/애님 레이어 비활성화 필요.
@@ -152,35 +161,41 @@ void UGtLoadoutComponent::DeactivateCurrentWeaponSlot()
     }
     
     ActiveWeaponSlotTag = FGameplayTag::EmptyTag;
-    CurrentEquippedItem->Destroy();
-    CurrentEquippedItem = nullptr;
+    CurrentEquippedWeapon->Destroy();
+    CurrentEquippedWeapon = nullptr;
 
-    OnEquipmentItemChanged.Broadcast(nullptr);
+    OnEquipmentWeaponChanged.Broadcast(nullptr);
 }
 
 void UGtLoadoutComponent::ActivateNewWeaponSlot(const FGameplayTag& SlotTag)
 {
     const FGtLoadoutSlot* TargetSlot = FindSlotByTag(SlotTag);
+    
     if (!TargetSlot || !TargetSlot->bHasItem) return;
-
+    if (!TargetSlot->SlotTag.MatchesTag(GtGameplayTags::Loadout_Slot_Weapon))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Cannot activate non-weapon slot as active weapon."));
+        return;
+    }
+    
     // =====================================================
     //                 TODO : 테스트를 위한 임시 코드
     // =====================================================
     // 이 코드 부분은 ItemFactory 수정 없이 테스트하기 위함이며 나중에 제거해야 함
-    AGtItemBase* NewItem = nullptr; 
+    AGtWeaponItem* NewWeapon = nullptr; 
     if (TargetSlot->EquippedItemData.ItemTag == GtGameplayTags::Item_Weapon_TestRifle)
     {
         UE_LOG(LogTemp, Warning, TEXT("Bypassing ItemFactory for Test Weapon."));
         // LoadoutComponent에 설정된 TestWeaponClass를 직접 사용해 스폰
         if (TestWeaponClass)
         {
-            NewItem = GetWorld()->SpawnActor<AGtItemBase>(TestWeaponClass);
+            NewWeapon = GetWorld()->SpawnActor<AGtWeaponItem>(TestWeaponClass);
         }
     }
     else
     {
         // 기존 로직: 테스트 무기가 아닐 경우에만 ItemFactory를 사용합니다.
-        NewItem = UGtItemFactory::CreateItem(TargetSlot->EquippedItemData, GetWorld());
+        NewWeapon = Cast<AGtWeaponItem>(UGtItemFactory::CreateItem(TargetSlot->EquippedItemData, GetWorld()));
     }
     // ==================================================
     //                  TODO : 테스트 코드 종료
@@ -188,18 +203,14 @@ void UGtLoadoutComponent::ActivateNewWeaponSlot(const FGameplayTag& SlotTag)
 
     // 추후 다시 주석 활성화
     //AGtItemBase* NewItem = UGtItemFactory::CreateItem(TargetSlot->EquippedItemData, GetWorld());
-    if (!NewItem) return;
+    if (!NewWeapon) return;
 
-    CurrentEquippedItem = NewItem;
+    CurrentEquippedWeapon = NewWeapon;
     ActiveWeaponSlotTag = SlotTag;
-
-    // 무기일 경우에만 손에 부착
-    if (TargetSlot->SlotTag.MatchesTag(GtGameplayTags::Loadout_Slot_Weapon))
+    
+    if (OwnerCharacter.IsValid())
     {
-        if (OwnerCharacter.IsValid())
-        {
-            CurrentEquippedItem->AttachToComponent(OwnerCharacter->GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponAttachSocketName);
-        }
+        CurrentEquippedWeapon->AttachToComponent(OwnerCharacter->GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, WeaponAttachSocketName);
     }
 
     // TODO: 임시 코드
@@ -216,26 +227,30 @@ void UGtLoadoutComponent::ActivateNewWeaponSlot(const FGameplayTag& SlotTag)
     }
     
     // TODO : 구조 변경할 수 있음
-    if (CurrentEquippedItem->Implements<UGtEquippable>())
+    if (CurrentEquippedWeapon->Implements<UGtEquippable>())
     {
-        IGtEquippable::Execute_OnEquipped(CurrentEquippedItem, GetOwner());
+        IGtEquippable::Execute_OnEquipped(CurrentEquippedWeapon, GetOwner());
     }
     
     // 장착시 장착 애니메이션/애님 레이어등 활성화 필요.
 
-    OnEquipmentItemChanged.Broadcast(CurrentEquippedItem);
+    OnEquipmentWeaponChanged.Broadcast(CurrentEquippedWeapon);
 }
 
 void UGtLoadoutComponent::UseItemInSlot(const FGameplayTag& SlotTag)
 {
     const FGtLoadoutSlot* TargetSlot = FindSlotByTag(SlotTag);
     if (!TargetSlot || !TargetSlot->bHasItem) return;
-
+    if (TargetSlot->SlotTag.MatchesTag(GtGameplayTags::Loadout_Slot_Weapon))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Cannot use weapon slot as usable item."));
+        return;
+    }
     // 아이템 임시 생성 및 사용
     AGtItemBase* TempItem = UGtItemFactory::CreateItem(TargetSlot->EquippedItemData, GetWorld());
     if(TempItem)
     {
-        // TODO: 향후 'IGtUsable' 같은 별도 인터페이스로 변경
+        // TODO: 향후 'IGtUsable' 같은 별도 인터페이스로 변경 고려
         // 현재는 IGtEquippable의 PrimaryAction을 사용의 의미로 호출.
         if(TempItem->Implements<UGtEquippable>())
         {
@@ -258,25 +273,25 @@ void UGtLoadoutComponent::UseItemInSlot(const FGameplayTag& SlotTag)
 
 void UGtLoadoutComponent::PrimaryAction()
 {
-    if (CurrentEquippedItem && CurrentEquippedItem->Implements<UGtEquippable>())
+    if (CurrentEquippedWeapon && CurrentEquippedWeapon->Implements<UGtEquippable>())
     {
-        IGtEquippable::Execute_ExecutePrimaryAction(CurrentEquippedItem);
+        IGtEquippable::Execute_ExecutePrimaryAction(CurrentEquippedWeapon);
     }
 }
 
 void UGtLoadoutComponent::SecondaryAction()
 {
-    if (CurrentEquippedItem && CurrentEquippedItem->Implements<UGtEquippable>())
+    if (CurrentEquippedWeapon && CurrentEquippedWeapon->Implements<UGtEquippable>())
     {
-        IGtEquippable::Execute_ExecuteSecondaryAction(CurrentEquippedItem);
+        IGtEquippable::Execute_ExecuteSecondaryAction(CurrentEquippedWeapon);
     }
 }
 
 void UGtLoadoutComponent::ReloadAction()
 {
-    if (CurrentEquippedItem && CurrentEquippedItem->Implements<UGtEquippable>())
+    if (CurrentEquippedWeapon && CurrentEquippedWeapon->Implements<UGtEquippable>())
     {
-        IGtEquippable::Execute_ExecuteReloadAction(CurrentEquippedItem);
+        IGtEquippable::Execute_ExecuteReloadAction(CurrentEquippedWeapon);
     }
 }
 
