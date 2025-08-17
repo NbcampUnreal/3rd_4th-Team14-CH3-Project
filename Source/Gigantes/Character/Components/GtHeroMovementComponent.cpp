@@ -66,8 +66,19 @@ float UGtHeroMovementComponent::GetMaxSpeed() const
 {
     if (HeroCharacterOwner && HeroCharacterOwner->bIsSprinting)
     {
+        if (HeroCharacterOwner->HasStatusTag(GtGameplayTags::Status_Action_Aiming))
+        {
+            return SprintMaxSpeed * AimSpeedMultiplier;
+        }
         return SprintMaxSpeed;
     }
+
+    // Aiming 체크 - StatusTag로 확인
+    if (HeroCharacterOwner && HeroCharacterOwner->HasStatusTag(GtGameplayTags::Status_Action_Aiming))
+    {
+        // 기본 속도에 조준 배율 적용
+        return Super::GetMaxSpeed() * AimSpeedMultiplier;
+    }    
     
     return Super::GetMaxSpeed();
 }
@@ -76,7 +87,16 @@ float UGtHeroMovementComponent::GetMaxAcceleration() const
 {
     if (HeroCharacterOwner && HeroCharacterOwner->bIsSprinting)
     {
+        if (HeroCharacterOwner->HasStatusTag(GtGameplayTags::Status_Action_Aiming))
+        {
+            return SprintAcceleration * AimSpeedMultiplier;
+        }
         return SprintAcceleration;
+    }
+
+    if (HeroCharacterOwner && HeroCharacterOwner->HasStatusTag(GtGameplayTags::Status_Action_Aiming))
+    {
+        return Super::GetMaxAcceleration() * AimSpeedMultiplier;
     }
     
     return Super::GetMaxAcceleration();
