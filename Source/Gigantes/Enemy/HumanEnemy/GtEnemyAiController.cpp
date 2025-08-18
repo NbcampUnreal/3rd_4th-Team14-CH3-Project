@@ -30,7 +30,7 @@ AGtEnemyAiController::AGtEnemyAiController()
 	
 	MotherAiPosition = FVector::ZeroVector;
 	LastPosition  = FVector::ZeroVector;
-		
+	
 	//State
 	CurrentState = EAiState::Move;
 	ObeyValue = FMath::RandRange(1, 10);
@@ -345,11 +345,11 @@ void AGtEnemyAiController::AttackAction()
 	Direction.Z = 0;
     FRotator TargetRotation = FRotationMatrix::MakeFromX(Direction).Rotator();
 	GetPawn()->SetActorRotation(TargetRotation);
+	SetControlRotation(TargetRotation);
 	CurrentState = EAiState::Attack;
 	UE_LOG(LogTemp, Warning, TEXT("[EnemyAi] Shoot Player."));
 	
 	//attack to player
-	
 	SelectTimerChoice(EAiState::Reload);
 }
 
@@ -368,4 +368,5 @@ void AGtEnemyAiController::ReloadAction()
 void AGtEnemyAiController::Die()
 {
 	ClearAllTimers();
+	CurrentState = EAiState::Idle;
 }

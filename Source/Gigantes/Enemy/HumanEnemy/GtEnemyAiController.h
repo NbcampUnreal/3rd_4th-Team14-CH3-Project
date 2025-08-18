@@ -30,7 +30,7 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI")
 	EAiState CurrentState;
-
+	void Die();
 protected:
 	virtual void BeginPlay() override;
 	//ai
@@ -77,6 +77,5 @@ protected:
 	//movement-attack
 	void AttackAction();
 	void ReloadAction();
-	//die
-	void Die();
+	
 };
