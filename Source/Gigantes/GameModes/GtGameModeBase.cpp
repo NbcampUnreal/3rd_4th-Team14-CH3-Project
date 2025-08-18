@@ -72,12 +72,14 @@ void AGtGameModeBase::BeginPlay()
 void AGtGameModeBase::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	if (bGameOver || bGameCleared) return;
-
 	ElapsedTime += DeltaTime;
+	if (AGtGameStateBase* GS = GetGameState<AGtGameStateBase>())
+	{
+		GS->ElapsedTime = ElapsedTime;  // GS 동기화
+	}
 	if (ElapsedTime >= GameTimeLimit)
 	{
-		EndGame(false);  //시간초과되면 게임종료
+		EndGame(false);
 	}
 }
 
