@@ -45,6 +45,7 @@ protected:
 	UPROPERTY()
 	AActor* CurrentTarget = nullptr;
 	FVector MotherAiPosition;
+	FVector LastPosition;
 	int ObeyValue;
 	
 	//timer
@@ -52,13 +53,14 @@ protected:
 	void SelectTimerChoice(EAiState AiState);
 	
 	FTimerHandle MoveToTimer;
+	FTimerHandle ToLastPositionTimer;
 	FTimerHandle AttackTimer;
 	FTimerHandle ReloadTimer;
 	void MoveToTimerOn();
-	
 	void AttackTimerOn();
 	void ReloadTimerOn();
-	//timer_clear
+	void ToLastPositionTimerOn();
+	
 	void ClearAllTimers();
 
 	//movement-idle
@@ -71,8 +73,10 @@ protected:
 	void StartChasing(AActor* Target);
 	void UpdateChase();
 	void StopChasing();
+	void MoveToLastPosition();
 	//movement-attack
 	void AttackAction();
 	void ReloadAction();
-	
+	//die
+	void Die();
 };

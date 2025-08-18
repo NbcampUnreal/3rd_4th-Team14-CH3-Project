@@ -29,6 +29,7 @@ AGtEnemyAiController::AGtEnemyAiController()
 	SightConfig->DetectionByAffiliation.bDetectFriendlies = true;
 	
 	MotherAiPosition = FVector::ZeroVector;
+	LastPosition  = FVector::ZeroVector;
 		
 	//State
 	CurrentState = EAiState::Move;
@@ -127,6 +128,17 @@ void AGtEnemyAiController::ReloadTimerOn()
 	);
 }
 
+void AGtEnemyAiController::ToLastPositionTimerOn()
+{
+	GetWorldTimerManager().SetTimer(
+	ToLastPositionTimer,
+	this,
+	&AGtEnemyAiController::MoveToLastPosition,
+	0.25f,
+	true
+	);
+}
+
 void AGtEnemyAiController::ClearAllTimers()
 {
 	GetWorldTimerManager().ClearTimer(MoveToTimer);
@@ -156,7 +168,7 @@ void AGtEnemyAiController::OnPerceptionUpdated(AActor* Actor, FAIStimulus Stimul
 			2.0f,
 			true
 		);
-
+		ClearAllTimers();
 		StartChasing(Actor);
 	}
 	else
@@ -173,7 +185,7 @@ void AGtEnemyAiController::OnPerceptionUpdated(AActor* Actor, FAIStimulus Stimul
 			true
 		);
 		StopChasing();
-		MoveRandomOrAiLocation();
+		ToLastPositionTimerOn();
 	}
 }
 
@@ -250,12 +262,13 @@ void AGtEnemyAiController::MoveRandomOrAiLocation()
 
 void AGtEnemyAiController::StartChasing(AActor* Target)
 {
+	UE_LOG(LogTemp, Warning, TEXT("[EnemyAi] Start Chase."));
 	CurrentState = EAiState::Chase;
 	
 	if (bIsChasing && CurrentTarget == Target) return;
 	CurrentTarget = Target;
 	bIsChasing = true;
-
+	
 	GetWorldTimerManager().ClearTimer(MoveToTimer);
 /*
 	if (ATestAiCharacter* AIChar = Cast<ATestAiCharacter>(GetPawn()))
@@ -263,6 +276,7 @@ void AGtEnemyAiController::StartChasing(AActor* Target)
 		AIChar->SetMovementSpeed(AIChar->RunSpeed);
 	}
 */
+	ClearAllTimers();
 	UpdateChase();
 }
 
@@ -276,47 +290,63 @@ void AGtEnemyAiController::UpdateChase()
 	if (bIsChasing)
 	{
 		MoveToActor(CurrentTarget, 400.0f);
+		UE_LOG(LogTemp, Warning, TEXT("[EnemyAi] now chasing."));
 	}
 
-	float Distance = FVector::Dist(MyPawn->GetActorLocation(), CurrentTarget->GetTargetLocation());
+	float AttackDistance = FVector::Dist(MyPawn->GetActorLocation(), CurrentTarget->GetTargetLocation());
 
-	if (Distance < 1500.f)
+	if (AttackDistance < 1500.f && CurrentTarget)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[EnemyAi] Close enough to attack. Distance: %f"), Distance);
+		UE_LOG(LogTemp, Warning, TEXT("[EnemyAi] Close enough to attack. Distance: %f"), AttackDistance);
 		AttackTimerOn();
+	}
+	else
+	{
+	//
 	}
 }
 
-
 void AGtEnemyAiController::StopChasing()
 {
+	UE_LOG(LogTemp, Warning, TEXT("[EnemyAi] stopChasing."));
 	if (!bIsChasing) return;
-	MoveToLocation(CurrentTarget->GetTargetLocation());
+	LastPosition = CurrentTarget->GetActorLocation();
 	CurrentTarget = nullptr;
 	bIsChasing = false;
-
-	ClearAllTimers();
-	StopMovement();
-	MoveToTimerOn();
+		
 /*
 	if (ATestAiCharacter* AIChar = Cast<ATestAiCharacter>(GetPawn()))
 	{
 		AIChar->SetMovementSpeed(AIChar->WalkSpeed);
 	}
-*/
+*/	
+}
+
+void AGtEnemyAiController::MoveToLastPosition()
+{
+	float Distance = FVector::Dist(GetPawn()->GetActorLocation(), LastPosition);
+	MoveToLocation(LastPosition);
+	UE_LOG(LogTemp, Warning, TEXT("[EnemyAi] Go LastPosition."));
+	if (Distance < 100.f)
+	{
+		MoveToTimerOn();
+		GetWorldTimerManager().ClearTimer(ToLastPositionTimer);
+		UE_LOG(LogTemp, Warning, TEXT("[EnemyAi] arrive LastPosition."));
+		
+	}
 }
 
 void AGtEnemyAiController::AttackAction()
 {
-	CurrentState = EAiState::Attack;
-	UE_LOG(LogTemp, Warning, TEXT("[EnemyAi] Shoot Player."));
-	ClearAllTimers();
+	if (!CurrentTarget) return;
 	
+	ClearAllTimers();
 	FVector Direction = CurrentTarget->GetActorLocation() - GetPawn()->GetActorLocation();
 	Direction.Z = 0;
     FRotator TargetRotation = FRotationMatrix::MakeFromX(Direction).Rotator();
-	
 	GetPawn()->SetActorRotation(TargetRotation);
+	CurrentState = EAiState::Attack;
+	UE_LOG(LogTemp, Warning, TEXT("[EnemyAi] Shoot Player."));
 	
 	//attack to player
 	
@@ -332,10 +362,10 @@ void AGtEnemyAiController::ReloadAction()
 	if (CurrentTarget != nullptr)
 	{
 		SelectTimerChoice(EAiState::Attack);
-	}
-	else
-	{
-		SelectTimerChoice(EAiState::Move);
-	}
-	
+	}	
+}
+
+void AGtEnemyAiController::Die()
+{
+	ClearAllTimers();
 }
