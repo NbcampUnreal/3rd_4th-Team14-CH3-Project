@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "Engine/DataAsset.h"
-#include "Gigantes/Items/Base/GtItemBase.h"
+#include "Gigantes/Items/Runtime/Core/GtItemBase.h"
 #include "ItemClassMapping.generated.h"
 
 USTRUCT()

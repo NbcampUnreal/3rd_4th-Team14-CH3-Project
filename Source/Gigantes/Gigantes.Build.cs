@@ -21,7 +21,9 @@ public class Gigantes : ModuleRules
 			"UMG",
 			"Json",
 			"JsonUtilities",
-			"Niagara"
+			"Niagara",
+			"AssetRegistry",
+			"DeveloperSettings"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });

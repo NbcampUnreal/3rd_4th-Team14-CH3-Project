@@ -2,7 +2,10 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
+#include "UObject/SoftObjectPtr.h"
 #include "FGtItemData.generated.h"
+
+class AGtItemBase;
 
 USTRUCT(BlueprintType)
 struct FGtItemData
@@ -48,9 +51,11 @@ struct FGtItemData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int32 HealAmount = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Item")
 	FGameplayTag ItemTag;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FSoftClassPath ClassPath;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Item")
+	TSoftClassPtr<AGtItemBase> ItemClass;
+
+	static bool FromJson(const TSharedPtr<FJsonObject>& Obj, FGtItemData& OutData);
 };
