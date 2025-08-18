@@ -88,6 +88,9 @@ protected:
 	UFUNCTION()
 	void OnEquipmentChanged(AGtTestWeaponBase* NewWeapon);
 
+	UFUNCTION()
+	void OnMontageEnded(UAnimMontage* Montage, bool bInterrupted);
+
 	bool ShouldStartSlide() const;
 	void StartSlide();
 	

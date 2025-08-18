@@ -8,6 +8,7 @@
 #include "Gigantes/Equipments/Components/GtLoadoutComponent.h"
 #include "Gigantes/Input/GtInputComponent.h"
 #include "Gigantes/Items/Systems/Manager/GtItemManagerComponent.h"
+#include "Test/GtTestWeaponBase.h"
 #include "Test/TestGtGameplayTags.h"
 
 AGtHeroCharacter::AGtHeroCharacter(const FObjectInitializer& ObjectInitializer)
@@ -50,6 +51,10 @@ void AGtHeroCharacter::BeginPlay()
 	if (LoadoutComponent)
 	{
 		LoadoutComponent->OnEquipmentWeaponChanged.AddDynamic(this, &AGtHeroCharacter::OnEquipmentChanged);
+	}
+	if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+	{
+		AnimInstance->OnMontageEnded.AddDynamic(this, &AGtHeroCharacter::OnMontageEnded);
 	}
 }
 
@@ -532,6 +537,20 @@ void AGtHeroCharacter::OnEquipmentChanged(AGtTestWeaponBase* NewWeapon)
 		GetCharacterMovement()->bOrientRotationToMovement = true;
 		bUseControllerRotationYaw = false;
 		JointTargetLocation = FVector::ZeroVector;
+	}
+}
+
+void AGtHeroCharacter::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+	AGtTestWeaponBase* CurrentWeapon = LoadoutComponent ? Cast<AGtTestWeaponBase>(LoadoutComponent->GetCurrentEquippedWeapon()) : nullptr;
+    
+	// 끝난 몽타주가 현재 무기의 재장전 몽타주가 맞는지 그리고 캐릭터가 재장전 상태인지 확인
+	// 이렇게 하면 다른 몽타주가 끝나도 재장전 상태가 해제되는 버그를 막을 수 있음
+	if (CurrentWeapon && Montage == CurrentWeapon->GetCharacterReloadMontage() && HasStatusTag(GtGameplayTags::Status_Action_Reloading))
+	{
+		// 재장전이 정상적으로 끝났든 무기 교체 등으로 중단되었든 상관없이 상태를 정리
+		RemoveStatusTag(GtGameplayTags::Status_Action_Reloading);
+		CurrentWeapon->EndReload();
 	}
 }
 

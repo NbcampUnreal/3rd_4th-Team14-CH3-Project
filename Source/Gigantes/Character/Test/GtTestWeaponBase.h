@@ -115,6 +115,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Weapon|Aim")
 	const FGtCameraModifier& GetAimCameraModifier() const { return AimCameraModifier; }
 
+	// [추가] 애님 노티파이 또는 다른 시스템에서 호출할 공개 함수들
+	//void OnNotify_RefillAmmo();
+	void EndReload();
+
+	// [추가] 캐릭터가 현재 무기의 재장전 몽타주를 알 수 있도록 Getter 추가
+	UAnimMontage* GetCharacterReloadMontage() const { return CharacterReloadMontage; }
 
 protected:
 	// 테스트용 간단한 발사 로직
@@ -231,6 +237,15 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Effects")
 	FName TrailTargetParameterName = TEXT("ShockBeamEnd");
 
+	//==========================================================================
+	// Reload Animations
+	//==========================================================================
+	UPROPERTY(EditDefaultsOnly, Category = "Weapon|Animation")
+	UAnimMontage* CharacterReloadMontage;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Weapon|Animation")
+	UAnimationAsset* WeaponReloadAnimation;
+
 private:
     //==========================================================================
     // Runtime State
@@ -243,6 +258,10 @@ private:
     
     UPROPERTY(BlueprintReadOnly, Category = "Weapon|Aim", meta = (AllowPrivateAccess = "true"))
     bool bIsAiming = false;
+
+	// [추가] 현재 재장전 중인지 상태를 나타내는 플래그
+	UPROPERTY(VisibleAnywhere, Category="Weapon|State")
+	bool bIsReloading = false;
     
     // Fire State
     bool bFireInputPressed = false;
