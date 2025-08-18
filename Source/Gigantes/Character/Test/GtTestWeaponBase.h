@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Gigantes/Equipments/GtEquippable.h"
-#include "Gigantes/Items/Weapons/GtWeaponItem.h"
+#include "Gigantes/Items/Runtime/Core/GtItemBase.h"
 #include "Gigantes/Player/GtCameraModifierSource.h"
 #include "Gigantes/Player/GtPlayerCameraManager.h"
 #include "GtTestWeaponBase.generated.h"
@@ -79,7 +79,7 @@ class USphereComponent;
  * TODO: 정식 무기 시스템 완성 후 제거
  */
 UCLASS()
-class GIGANTES_API AGtTestWeaponBase : public AGtWeaponItem, public IGtEquippable, public IGtCameraModifierSource
+class GIGANTES_API AGtTestWeaponBase : public AGtItemBase, public IGtEquippable, public IGtCameraModifierSource
 {
 	GENERATED_BODY()
 

@@ -36,12 +36,6 @@ void AGtTestWeaponBase::InitializeTestWeapon()
     ItemData.FireRate = 0.1f;
     ItemData.ReloadTime = 2.0f;
     
-    // AGtWeaponItem의 멤버 변수들도 설정
-    Damage = ItemData.Damage;
-    MaxAmmo = ItemData.MaxAmmo;
-    AmmoInMagazine = ItemData.AmmoInMagazine;
-    FireRate = ItemData.FireRate;
-    ReloadRate = ItemData.ReloadTime;
 
     // 테스트용 조준 설정
     bCanAim = true;
@@ -341,7 +335,7 @@ void AGtTestWeaponBase::TestFire()
             
             FGtDamageResult DamageResult;
             IGtDamageable::Execute_ApplyDamage(HitResult.GetActor(), DamageInfo, DamageResult);
-            
+
             UE_LOG(LogTemp, Warning, TEXT("[TestWeapon] Hit %s for %.1f damage"), 
                 *HitResult.GetActor()->GetName(), DamageResult.FinalDamage);
         }

@@ -6,6 +6,7 @@
 #include "GtHumanBase.h"
 #include "GtHeroCharacter.generated.h"
 
+class AGtTestWeaponBase;
 struct FInputActionValue;
 
 class AGtWeaponItem;
@@ -85,7 +86,7 @@ protected:
 	void OnCharacterStatusTagChanged(const FGameplayTag& StatusTag, bool bAdded);
 
 	UFUNCTION()
-	void OnEquipmentChanged(AGtWeaponItem* NewWeapon);
+	void OnEquipmentChanged(AGtTestWeaponBase* NewWeapon);
 
 	bool ShouldStartSlide() const;
 	void StartSlide();

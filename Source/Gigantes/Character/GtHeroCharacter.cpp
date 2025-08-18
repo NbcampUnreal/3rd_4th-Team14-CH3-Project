@@ -7,7 +7,7 @@
 #include "Gigantes/GtGameplayTags.h"
 #include "Gigantes/Equipments/Components/GtLoadoutComponent.h"
 #include "Gigantes/Input/GtInputComponent.h"
-#include "Gigantes/Items/Manager/GtItemManagerComponent.h"
+#include "Gigantes/Items/Systems/Manager/GtItemManagerComponent.h"
 #include "Test/TestGtGameplayTags.h"
 
 AGtHeroCharacter::AGtHeroCharacter(const FObjectInitializer& ObjectInitializer)
@@ -512,7 +512,7 @@ void AGtHeroCharacter::OnCharacterStatusTagChanged(const FGameplayTag& StatusTag
 	}
 }
 
-void AGtHeroCharacter::OnEquipmentChanged(AGtWeaponItem* NewWeapon)
+void AGtHeroCharacter::OnEquipmentChanged(AGtTestWeaponBase* NewWeapon)
 {
 	// NewWeapon이 nullptr이면 무기 해제/유효한 포인터이면 무기 장착 상태
 	bIsEquipped = (NewWeapon != nullptr);

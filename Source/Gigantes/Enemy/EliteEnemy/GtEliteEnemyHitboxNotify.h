@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "GtEliteEnemyHitboxNotify.generated.h"
+
 #include "CoreMinimal.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
-
+#include "GtEliteEnemyHitboxNotify.generated.h"
 
 /**
  * 
