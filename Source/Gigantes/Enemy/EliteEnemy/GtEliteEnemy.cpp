@@ -21,14 +21,31 @@ AGtEliteEnemy::AGtEliteEnemy()
 	
 	HitBox_R->SetGenerateOverlapEvents(true);
 	HitBox_R->SetupAttachment(SkeletalMesh, TEXT("lowerarm_r"));
+	HitBox_R->OnComponentBeginOverlap.AddDynamic(this, &AGtEliteEnemy::Attack);
 	
 	HitBox_L->SetGenerateOverlapEvents(true);
 	HitBox_L->SetupAttachment(SkeletalMesh, TEXT("lowerarm_l"));
-
+	HitBox_L->OnComponentBeginOverlap.AddDynamic(this, &AGtEliteEnemy::Attack);
+	
 	BossState = EBossState::Idle;
 	Patern = {1,2,3};
 	FindEnemyActor = nullptr;
+
+	BossHP = 100;
+	BossDamage = 10;
 }
+
+void AGtEliteEnemy::GetDamage(float Damage)
+{
+	BossHP=-Damage;
+}
+
+void AGtEliteEnemy::Attack(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
+	int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	//give damage
+}
+
 
 void AGtEliteEnemy::BeginPlay()
 {

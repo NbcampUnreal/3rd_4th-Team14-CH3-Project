@@ -35,6 +35,19 @@ public:
 	AActor* FindEnemyActor;
 
 	void ReAttack();
+
+	float BossHP;
+	float BossDamage;
+	void GetDamage(float Damage);
+	UFUNCTION()
+	void Attack(UPrimitiveComponent* OverlappedComponent, 
+			   AActor* OtherActor, 
+			   UPrimitiveComponent* OtherComp, 
+			   int32 OtherBodyIndex, 
+			   bool bFromSweep, 
+			   const FHitResult& SweepResult);
+
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -57,11 +70,14 @@ protected:
 	USkeletalMeshComponent* SkeletalMesh;
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Enemy|TracePlayer")
 	USphereComponent* SphereCollision;
+
+public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Enemy|collision")
 	UBoxComponent* HitBox_R;
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Enemy|collision")
 	UBoxComponent* HitBox_L;
 
+protected:
 	FTimerHandle PlayerTraceTimer;
 	FTimerHandle AttacktTmer01;
 	FTimerHandle AttacktTmer02;
