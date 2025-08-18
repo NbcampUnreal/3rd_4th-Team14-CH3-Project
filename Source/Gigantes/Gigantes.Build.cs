@@ -19,6 +19,7 @@ public class Gigantes : ModuleRules
 			"GameplayTasks", 
 			"GameplayTags", 
 			"UMG",
+      		"AnimGraphRuntime",
 			"Json",
 			"JsonUtilities",
 			"Niagara",
@@ -26,7 +27,7 @@ public class Gigantes : ModuleRules
 			"DeveloperSettings"
 		});
 
-		PrivateDependencyModuleNames.AddRange(new string[] {  });
+		PrivateDependencyModuleNames.AddRange(new string[] { "AnimGraph" });
 		
 		// if (Target.Type == TargetType.Editor)
 		// {
@@ -41,7 +42,10 @@ public class Gigantes : ModuleRules
 			"Source/Gigantes/Player",
 			"Source/Gigantes/Items",
 			"Source/Gigantes/UI",
-			"Source/Gigantes/Input"
+			"Source/Gigantes/Input",
+			"Source/Gigantes/Gameplay",
+			"Source/Gigantes/Animation",
+			"Source/Gigantes/Equipments"
 		});
 		
 		// Uncomment if you are using Slate UI

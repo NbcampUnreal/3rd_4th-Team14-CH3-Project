@@ -1,0 +1,268 @@
+#include "GtCharacterBase.h"
+#include "Components/GtAttributeComponent.h"
+#include "Gigantes/GtGameplayTags.h"
+#include "Gigantes/Gameplay/Damage/Components/GtDamageReceiverComponent.h"
+#include "Perception/AIPerceptionStimuliSourceComponent.h"
+#include "Perception/AISense_Sight.h"
+
+
+AGtCharacterBase::AGtCharacterBase(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	AttributeComponent = CreateDefaultSubobject<UGtAttributeComponent>(TEXT("AttributeComponent"));
+	DamageReceiverComponent = CreateDefaultSubobject<UGtDamageReceiverComponent>(TEXT("DamageReceiverComponent"));
+	AIPerceptionStimuliSourceComponent = CreateDefaultSubobject<UAIPerceptionStimuliSourceComponent>(TEXT("AIPerceptionStimuliSourceComponent"));
+
+	AIPerceptionStimuliSourceComponent->RegisterForSense(UAISense_Sight::StaticClass());
+	AIPerceptionStimuliSourceComponent->RegisterWithPerceptionSystem();
+}
+
+void AGtCharacterBase::BeginPlay()
+{
+	Super::BeginPlay();
+
+	AttributeChangedHandlers.Add(GtGameplayTags::Attribute_Primary_Health, FAttributeChangedHandler::CreateUObject(this, &AGtCharacterBase::HandleHealthChanged));
+	if (AttributeComponent)
+	{
+		AttributeComponent->OnAttributePrimaryChanged.AddDynamic(this, &AGtCharacterBase::OnAttributePrimaryChanged);
+	}
+
+	if (DamageReceiverComponent)
+	{
+		DamageReceiverComponent->OnDamageProcessed.AddDynamic(this, &AGtCharacterBase::HandleDamageResult);
+	}
+}
+
+bool AGtCharacterBase::ApplyDamage_Implementation(const FGtDamageInfo& DamageInfo, FGtDamageResult& OutDamageResult)
+{
+	if (HasStatusTagExact(GtGameplayTags::Status_Dead))
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[%s] Already dead. Ignore damage %.2f"), *GetName(), DamageInfo.BaseDamage);
+		OutDamageResult.FinalDamage = 0.f;
+		return false;
+	}
+
+	if (DamageReceiverComponent)
+	{
+		// 실제 데미지 계산은 DamageReceiverComponent가 수행
+		return DamageReceiverComponent->ApplyDamage_Implementation(DamageInfo, OutDamageResult);
+	}
+	return false;
+}
+
+
+void AGtCharacterBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	AttributeChangedHandlers.Empty();
+	if (AttributeComponent)
+	{
+		AttributeComponent->OnAttributePrimaryChanged.RemoveDynamic(this, &ThisClass::OnAttributePrimaryChanged);
+	}
+	if (DamageReceiverComponent)
+	{
+		DamageReceiverComponent->OnDamageProcessed.RemoveDynamic(this, &ThisClass::HandleDamageResult);
+	}
+	
+	Super::EndPlay(EndPlayReason);
+}
+
+float AGtCharacterBase::GetAttributePrimary(const FGameplayTag& AttributePrimaryTag) const
+{
+	if (AttributeComponent)
+	{
+		return AttributeComponent->GetAttributePrimary(AttributePrimaryTag);
+	}
+	return 0.f;
+}
+
+void AGtCharacterBase::SetAttributePrimary(const FGameplayTag& AttributePrimaryTag, float NewValue)
+{
+	if (AttributeComponent)
+	{
+		AttributeComponent->SetAttributePrimary(AttributePrimaryTag, NewValue);
+	}
+}
+
+void AGtCharacterBase::AddToAttributePrimary(const FGameplayTag& AttributePrimaryTag, float Delta)
+{
+	if (AttributeComponent)
+	{
+		const float CurrentValue = GetAttributePrimary(AttributePrimaryTag);
+		SetAttributePrimary(AttributePrimaryTag, CurrentValue + Delta);
+	}
+}
+
+float AGtCharacterBase::GetHealth() const
+{
+	if (AttributeComponent)
+	{
+		return AttributeComponent->GetAttributePrimary(GtGameplayTags::Attribute_Primary_Health);
+	}
+	return 0.f;
+}
+
+void AGtCharacterBase::SetHealth(float NewValue)
+{
+	if (AttributeComponent)
+	{
+		AttributeComponent->SetAttributePrimary(GtGameplayTags::Attribute_Primary_Health, NewValue);
+	}
+}
+
+void AGtCharacterBase::AddHealth(float Delta)
+{
+	if (AttributeComponent)
+	{
+		const float CurrentValue = GetHealth();
+		SetHealth(CurrentValue + Delta);
+	}
+}
+
+bool AGtCharacterBase::HasStatusTag(const FGameplayTag& StatusTag) const
+{
+	return StatusTags.HasTag(StatusTag);
+}
+
+bool AGtCharacterBase::HasStatusTagExact(const FGameplayTag& StatusTag) const
+{
+	return StatusTags.HasTagExact(StatusTag);
+}
+
+void AGtCharacterBase::AddStatusTag(const FGameplayTag& StatusTag)
+{
+	if (StatusTags.HasTagExact(StatusTag))
+		return;
+
+	StatusTags.AddTag(StatusTag);
+	OnStatusTagChanged.Broadcast(StatusTag, /*bAdded=*/true);
+	OnStatusTagAdded(StatusTag);
+}
+
+void AGtCharacterBase::RemoveStatusTag(const FGameplayTag& StatusTag)
+{
+	if (!StatusTags.HasTagExact(StatusTag))
+		return;
+	
+	StatusTags.RemoveTag(StatusTag);
+	OnStatusTagChanged.Broadcast(StatusTag, /*bAdded=*/false);
+	OnStatusTagRemoved(StatusTag);
+}
+
+void AGtCharacterBase::OnStatusTagAdded(const FGameplayTag& Tag)
+{
+	// Combat 태그가 처음 추가될 때
+	if (Tag.MatchesTag(GtGameplayTags::Status_Combat))
+	{
+		ResetCombatStateTimer();
+	}
+}
+
+void AGtCharacterBase::OnStatusTagRemoved(const FGameplayTag& Tag)
+{
+	// 기본 구현은 비어있음 - 파생 클래스에서 오버라이드
+}
+
+// TODO : 전투 태그를 파라미터로 받도록 수정
+void AGtCharacterBase::NotifyCombatAction()
+{
+	// 아직 전투 상태가 아니라면 태그를 추가하고, 이미 전투 중이라면 타이머만 리셋
+	if (!HasStatusTag(GtGameplayTags::Status_Combat_Ranged)) 
+	{
+		AddStatusTag(GtGameplayTags::Status_Combat_Ranged);
+	}
+	else
+	{
+		ResetCombatStateTimer();
+	}
+}
+
+void AGtCharacterBase::ResetCombatStateTimer()
+{
+	if (GetWorld())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(CombatStateTimer);
+		GetWorld()->GetTimerManager().SetTimer(
+			CombatStateTimer,
+			this,
+			&AGtCharacterBase::ClearAllCombatTags,
+			CombatStateTimeout,
+			false
+		);
+	}
+}
+
+void AGtCharacterBase::ClearAllCombatTags()
+{
+	// Status.Combat 하위의 모든 태그 찾기
+	TArray<FGameplayTag> TagsToRemove;
+	for (const FGameplayTag& Tag : StatusTags)
+	{
+		if (Tag.MatchesTag(GtGameplayTags::Status_Combat))
+		{
+			TagsToRemove.Add(Tag);
+		}
+	}
+    
+	// 태그 제거
+	for (const FGameplayTag& Tag : TagsToRemove)
+	{
+		RemoveStatusTag(Tag);
+	}
+    
+	if (TagsToRemove.Num() > 0)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[%s] Cleared %d combat tags"), 
+			*GetName(), TagsToRemove.Num());
+	}
+}
+
+void AGtCharacterBase::OnAttributePrimaryChanged(const FGameplayTag& AttributePrimaryTag, float OldValue, float NewValue)
+{
+	if (const FAttributeChangedHandler* AttributeChangedHandler = AttributeChangedHandlers.Find(AttributePrimaryTag))
+	{
+		AttributeChangedHandler->ExecuteIfBound(OldValue, NewValue);
+	}
+}
+
+void AGtCharacterBase::HandleHealthChanged(float OldValue, float NewValue)
+{
+	FAttributePrimaryData Data;
+	float MinHealth = 0.f;
+	if (AttributeComponent && AttributeComponent->GetAttributePrimaryData(GtGameplayTags::Attribute_Primary_Health, Data))
+	{
+		MinHealth = Data.MinValue;
+	}
+
+	// OldValue > MinHealth && NewValue <= MinHealth 일 때만 최초 사망
+	if (OldValue > MinHealth && NewValue <= MinHealth)
+	{
+		Die();
+	}
+}
+
+void AGtCharacterBase::Die()
+{
+	if (HasStatusTagExact(GtGameplayTags::Status_Dead))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Character is already dead."));
+		return;
+	}
+
+	AddStatusTag(GtGameplayTags::Status_Dead);
+	
+	UE_LOG(LogTemp, Warning, TEXT("Character is dead."));
+}
+
+void AGtCharacterBase::HandleDamageResult(const FGtDamageResult& DamageResult)
+{
+	UE_LOG(LogTemp, Log, TEXT("[GtCharacterBase] Handling damage result. Final Damage: %.2f"), DamageResult.FinalDamage);
+    
+	// AttributeComponent에 체력 감소 요청
+	if (DamageResult.FinalDamage > 0.f && AttributeComponent)
+	{
+		// 체력이 0이 될 경우 AttributeComponent의 델리게이트로 인해 HandleHealthChanged에서 Die 호출
+		AddHealth(-DamageResult.FinalDamage);
+	}
+	
+}
+
