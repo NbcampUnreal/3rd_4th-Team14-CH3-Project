@@ -57,11 +57,10 @@ protected:
 	FTimerHandle AttackTimer;
 	FTimerHandle ReloadTimer;
 	void MoveToTimerOn();
-	
 	void AttackTimerOn();
 	void ReloadTimerOn();
 	void ToLastPositionTimerOn();
-	//timer_clear
+	
 	void ClearAllTimers();
 
 	//movement-idle
@@ -78,5 +77,6 @@ protected:
 	//movement-attack
 	void AttackAction();
 	void ReloadAction();
-	
+	//die
+	void Die();
 };

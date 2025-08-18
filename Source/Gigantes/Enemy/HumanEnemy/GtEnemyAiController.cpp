@@ -364,3 +364,8 @@ void AGtEnemyAiController::ReloadAction()
 		SelectTimerChoice(EAiState::Attack);
 	}	
 }
+
+void AGtEnemyAiController::Die()
+{
+	ClearAllTimers();
+}

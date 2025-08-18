@@ -100,6 +100,7 @@ void AGtEliteEnemy::AttacktTmer01_On()
 	GetWorldTimerManager().ClearTimer(PlayerTraceTimer);
 	UE_LOG(LogTemp, Warning, TEXT("[Boss]Attack01"));
 	Patern.RemoveSingle(1);
+	
 	GetWorldTimerManager().SetTimer(
 		AttacktTmer01,
 		this,
@@ -165,18 +166,19 @@ void AGtEliteEnemy::PlayerTrace()
 void AGtEliteEnemy::Attackt01()
 {
 	Patern.Add(1);
-	ChoiceAttack();
-	PlayerTraceTimerOn();
+	
 }
 void AGtEliteEnemy::Attackt02()
 {
 	Patern.Add(2);
-	ChoiceAttack();
-	PlayerTraceTimerOn();
 }
 void AGtEliteEnemy::Attackt03()
 {
 	Patern.Add(3);
+}
+
+void AGtEliteEnemy::ReAttack()
+{
 	ChoiceAttack();
 	PlayerTraceTimerOn();
 }

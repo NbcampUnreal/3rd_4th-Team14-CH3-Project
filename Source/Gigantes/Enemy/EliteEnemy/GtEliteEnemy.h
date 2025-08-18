@@ -33,6 +33,8 @@ public:
 	EBossState BossState;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Boss")
 	AActor* FindEnemyActor;
+
+	void ReAttack();
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -49,6 +51,7 @@ protected:
 	void Attackt01();
 	void Attackt02();
 	void Attackt03();
+	
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Enemy")
 	USkeletalMeshComponent* SkeletalMesh;
