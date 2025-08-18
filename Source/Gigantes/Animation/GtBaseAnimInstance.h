@@ -40,6 +40,15 @@ protected:
 	virtual void DestroyAnimInstanceProxy(FAnimInstanceProxy* InProxy) override;
 
 public:
+	UPROPERTY(BlueprintReadOnly, Category = "Rotation")
+	FRotator ActorWorldRotation;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Rotation")
+	FRotator PrevActorWorldRotation = FRotator::ZeroRotator;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Rotation")
+	double YawDeltaLastFrame;
+	
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	float GroundSpeed;
 
