@@ -130,8 +130,17 @@ void UGtLoadoutComponent::ChangeActiveWeaponSlot(const FGameplayTag& NewActiveSl
 
 void UGtLoadoutComponent::DeactivateCurrentWeaponSlot()
 {
-    if (!CurrentEquippedWeapon) return;
+    if (!CurrentEquippedWeapon || !OwnerCharacter.IsValid()) return;
 
+    // 무기 해제 시 관련된 모든 액션 몽타주를 중단
+    if (UAnimInstance* AnimInstance = OwnerCharacter->GetMesh()->GetAnimInstance())
+    {
+        if (AnimInstance->IsAnyMontagePlaying())
+        {
+            AnimInstance->Montage_Stop(0.2f); // 0.2초간 부드럽게 멈춤
+        }
+    }
+    
     FGtLoadoutSlot* CurrentSlot = FindSlotByTag(ActiveWeaponSlotTag);
     if (CurrentSlot)
     {
@@ -312,6 +321,22 @@ void UGtLoadoutComponent::ReloadAction()
     if (CurrentEquippedWeapon && CurrentEquippedWeapon->Implements<UGtEquippable>())
     {
         IGtEquippable::Execute_ExecuteReloadAction(CurrentEquippedWeapon);
+    }
+}
+
+void UGtLoadoutComponent::StartSecondaryAction()
+{
+    if (CurrentEquippedWeapon && CurrentEquippedWeapon->Implements<UGtEquippable>())
+    {
+        IGtEquippable::Execute_ExecuteSecondaryActionPressed(CurrentEquippedWeapon);
+    }
+}
+
+void UGtLoadoutComponent::StopSecondaryAction()
+{
+    if (CurrentEquippedWeapon && CurrentEquippedWeapon->Implements<UGtEquippable>())
+    {
+        IGtEquippable::Execute_ExecuteSecondaryActionReleased(CurrentEquippedWeapon);
     }
 }
 

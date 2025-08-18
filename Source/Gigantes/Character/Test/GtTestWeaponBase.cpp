@@ -209,10 +209,24 @@ void AGtTestWeaponBase::ExecuteReloadAction_Implementation()
     {
         return;
     }
+
+    if (bIsAiming)
+    {
+        StopAiming();
+    }
+    
+    bFireInputPressed = false; 
+    if (GetWorld())
+    {
+        GetWorld()->GetTimerManager().ClearTimer(AutoFireTimerHandle);
+        GetWorld()->GetTimerManager().ClearTimer(FireTimerHandle); 
+        bCanFire = true; // 단발 쿨다운 상태 초기화
+    }
     
     // 1. 재장전 상태로 진입
     bIsReloading = true;
     Hero->AddStatusTag(GtGameplayTags::Status_Action_Reloading);
+    Hero->AddIKDisableTag(GtGameplayTags::Animation_IK_Disable_Reloading);
 
     // 2. 캐릭터의 재장전 몽타주 재생
     if (CharacterReloadMontage)
@@ -228,8 +242,6 @@ void AGtTestWeaponBase::ExecuteReloadAction_Implementation()
     {
         WeaponMesh->PlayAnimation(WeaponReloadAnimation, false);
     }
-
-    UE_LOG(LogTemp, Log, TEXT("Reload Started."));
 }
 
 bool AGtTestWeaponBase::GetCameraModifierForTag_Implementation(const FGameplayTag& ActionTag,
@@ -247,9 +259,26 @@ bool AGtTestWeaponBase::GetCameraModifierForTag_Implementation(const FGameplayTa
 }
 
 // [추가] 
+void AGtTestWeaponBase::OnNotify_RefillAmmo()
+{
+    if (!bIsReloading) return; 
+
+    CurrentAmmo = TestMaxAmmo;
+
+    ConsecutiveShotCount = 0;
+    AccumulatedRecoil = FVector2D::ZeroVector;
+    CurrentSpread = 0.0f;
+}
+
+// [추가] 
 void AGtTestWeaponBase::EndReload()
 {
     bIsReloading = false;
+
+    if (WeaponMesh)
+    {
+        WeaponMesh->Stop();
+    }
 }
 
 void AGtTestWeaponBase::TestFire()

@@ -88,11 +88,14 @@ protected:
 	UFUNCTION()
 	void OnEquipmentChanged(AGtTestWeaponBase* NewWeapon);
 
+	// [추가]
 	UFUNCTION()
 	void OnMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
 	bool ShouldStartSlide() const;
 	void StartSlide();
+
+	bool CanPerformAction() const;
 	
 private:
 
@@ -102,6 +105,12 @@ private:
 	void HandleCapsuleSizeChanged(float HalfHeightAdjust, float ScaledHalfHeightAdjust);
 
 	void UpdateAimOffsetState();
+
+	// 조준 상태를 업데이트하는 중앙 함수
+	void TryUpdateAimingState();
+
+	// 캐릭터가 현재 조준할 수 있는 상태인지 확인하는 헬퍼 함수
+	bool CanAim() const;
 
 public:
 	UPROPERTY(BlueprintReadOnly, Category = "Character")
@@ -146,4 +155,6 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Animation|IK")
 	FGameplayTagContainer IKDisableTags;
+
+	bool bAimInputHeld = false;
 };
