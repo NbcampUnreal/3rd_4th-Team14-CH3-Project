@@ -7,6 +7,7 @@
 AGtGameModeBase::AGtGameModeBase()
 {
 	GameStateClass = AGtGameStateBase::StaticClass();
+	PrimaryActorTick.bCanEverTick = true;
 }
 
 void AGtGameModeBase::BeginPlay()
@@ -15,7 +16,6 @@ void AGtGameModeBase::BeginPlay()
 	UE_LOG(LogTemp, Warning, TEXT("Game Started!"));
 
 	check(GEngine != nullptr);
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("Game Started!"));
 
 	// 초기화 강화: 변수 리셋
 	CurrentEnemiesKilled = 0;
@@ -26,6 +26,7 @@ void AGtGameModeBase::BeginPlay()
 		GS->RemainingEnemies = MaxEnemies;
 		GS->CurrentScore = 0;
 		GS->ElapsedTime = 0.0f;
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("ElapsedTime: "));
 	}
 	
 	if (UClass* MenuClass = LoadClass<UUserWidget>(nullptr, TEXT("/Game/UI/WBP_GtMainMenu.WBP_GtMainMenu_C")))
@@ -75,7 +76,7 @@ void AGtGameModeBase::Tick(float DeltaTime)
 	ElapsedTime += DeltaTime;
 	if (AGtGameStateBase* GS = GetGameState<AGtGameStateBase>())
 	{
-		GS->ElapsedTime = ElapsedTime;  // GS 동기화
+		GS->ElapsedTime = ElapsedTime;// GS 동기화
 	}
 	if (ElapsedTime >= GameTimeLimit)
 	{
