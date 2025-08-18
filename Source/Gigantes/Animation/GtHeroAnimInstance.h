@@ -21,6 +21,8 @@ struct FGtHeroAnimInstanceProxy : public FGtBaseAnimInstanceProxy
 	bool bCachedIsEquipped;
 	bool bCachedUseAimOffset;
 
+	FGameplayTagContainer CachedIKDisableTags;
+
 	FVector CachedJointTargetLocation;
 	TWeakObjectPtr<USkeletalMeshComponent> CachedWeaponItemMesh;
 	TWeakObjectPtr<USkeletalMeshComponent> CachedCharacterMesh;
@@ -47,6 +49,7 @@ private:
 	void UpdateAimOffsets(const FGtHeroAnimInstanceProxy& Proxy);
 	void UpdateWeaponStates(const FGtHeroAnimInstanceProxy& Proxy);
 	void UpdateHandIK(const FGtHeroAnimInstanceProxy& Proxy);
+	void UpdateIKState(const FGtHeroAnimInstanceProxy& Proxy);
 	
 public:
 	UPROPERTY(BlueprintReadOnly, Category = "AimOffset")
@@ -77,6 +80,10 @@ public:
 	// TEMP: 애니메이션 테스트용
 	UPROPERTY(BlueprintReadOnly, Category = "Test")
 	bool bUseAimOffset;
+
+	// IK가 최종적으로 활성화되었는지 여부를 나타내는 변수
+	UPROPERTY(BlueprintReadOnly, Category = "HandBoneIK")
+	bool bIsLeftHandIKEnabled = false;
 
 	UPROPERTY(BlueprintReadOnly, Category = "HandBoneIK")
 	FVector JointTargetLocation = FVector::ZeroVector;

@@ -263,6 +263,12 @@ void AGtHeroCharacter::Input_SecondaryActionReleased(const FInputActionValue& In
 
 void AGtHeroCharacter::Input_Reload(const FInputActionValue& InputActionValue)
 {
+	// TODO : 행동 가능 상태 체크를 어떻게 구현할지 고민
+	if (HasStatusTag(GtGameplayTags::Status_Dead))
+	{
+		return; 
+	}
+	
 	if (LoadoutComponent)
 	{
 		LoadoutComponent->ReloadAction();
@@ -493,10 +499,16 @@ void AGtHeroCharacter::OnCharacterStatusTagChanged(const FGameplayTag& StatusTag
 {
 	// TODO : OnMovementModeChanged에서 처리하는 로직으로 대체 고려
 	const bool bIsWallRunTag = StatusTag.MatchesTag(GtGameplayTags::Status_Action_WallRunning);
-
 	if (bIsWallRunTag && bAdded)
 	{
 		JumpCount = 0;
+	}
+    
+	// 조준 또는 전투 상태 변경 시 AimOffset 업데이트
+	if (StatusTag == GtGameplayTags::Status_Action_Aiming || 
+		StatusTag == GtGameplayTags::Status_Combat_Ranged)
+	{
+		UpdateAimOffsetState();
 	}
 }
 
@@ -521,4 +533,24 @@ void AGtHeroCharacter::OnEquipmentChanged(AGtWeaponItem* NewWeapon)
 		bUseControllerRotationYaw = false;
 		JointTargetLocation = FVector::ZeroVector;
 	}
+}
+
+void AGtHeroCharacter::UpdateAimOffsetState()
+{
+	const bool bShouldEnableAimOffset = HasStatusTag(GtGameplayTags::Status_Action_Aiming) || HasStatusTag(GtGameplayTags::Status_Combat_Ranged);
+    
+	if (bUseAimOffset != bShouldEnableAimOffset)
+	{
+		bUseAimOffset = bShouldEnableAimOffset;
+	}
+}
+
+void AGtHeroCharacter::AddIKDisableTag(const FGameplayTag& DisableTag)
+{
+	IKDisableTags.AddTag(DisableTag);
+}
+
+void AGtHeroCharacter::RemoveIKDisableTag(const FGameplayTag& DisableTag)
+{
+	IKDisableTags.RemoveTag(DisableTag);
 }

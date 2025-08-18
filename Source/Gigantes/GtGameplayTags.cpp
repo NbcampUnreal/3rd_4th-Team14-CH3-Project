@@ -20,7 +20,7 @@ namespace GtGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG(InputTag_UseGrenade, "InputTag.UseGrenade");
 	UE_DEFINE_GAMEPLAY_TAG(InputTag_UseConsumable, "InputTag.UseConsumable");
 	
-	/** Status Tags */
+	/** Status Action Tags */
 	UE_DEFINE_GAMEPLAY_TAG(Status_Action, "Status.Action");
 	UE_DEFINE_GAMEPLAY_TAG(Status_Action_WallRunning, "Status.Action.WallRunning");
 	UE_DEFINE_GAMEPLAY_TAG(Status_Action_WallRunning_Left, "Status.Action.WallRunning.Left");
@@ -30,4 +30,15 @@ namespace GtGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG(Status_Action_Sprinting, "Status.Action.Sprinting");
 	UE_DEFINE_GAMEPLAY_TAG(Status_Action_Aiming, "Status.Action.Aiming");
 	UE_DEFINE_GAMEPLAY_TAG(Status_Dead, "Status.Dead");
+
+	/** Status Combat Tags */
+	UE_DEFINE_GAMEPLAY_TAG(Status_Combat, "Status.Combat");
+	UE_DEFINE_GAMEPLAY_TAG(Status_Combat_Ranged, "Status.Combat.Ranged");
+
+	/** Animation IK Tags */
+	UE_DEFINE_GAMEPLAY_TAG(Animation_IK_Disable, "Animation.IK.Disable");
+	UE_DEFINE_GAMEPLAY_TAG(Animation_IK_Disable_Reloading, "Animation.IK.Disable.Reloading");
+	UE_DEFINE_GAMEPLAY_TAG(Animation_IK_Disable_Grenade, "Animation.IK.Disable.Grenade");
+	UE_DEFINE_GAMEPLAY_TAG(Animation_IK_Disable_Interaction, "Animation.IK.Disable.Interaction");
+
 }

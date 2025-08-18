@@ -108,6 +108,7 @@ void UGtHeroAnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds)
 	UpdateAimOffsets(HeroAnimProxy);
 	UpdateWeaponStates(HeroAnimProxy);
 	UpdateHandIK(HeroAnimProxy);
+	UpdateIKState(HeroAnimProxy);
 }
 
 void UGtHeroAnimInstance::UpdateMovementStates(const FGtHeroAnimInstanceProxy& Proxy)
@@ -134,6 +135,7 @@ void UGtHeroAnimInstance::UpdateWeaponStates(const FGtHeroAnimInstanceProxy& Pro
 
 void UGtHeroAnimInstance::UpdateHandIK(const FGtHeroAnimInstanceProxy& Proxy)
 {
+	
 	if (Proxy.bCachedIsEquipped && Proxy.CachedCharacterMesh.IsValid() && Proxy.CachedWeaponItemMesh.IsValid())
 	{
 		// TODO : JointTargetLocation을 무기에서 관리할 것 같음
@@ -161,6 +163,18 @@ void UGtHeroAnimInstance::UpdateHandIK(const FGtHeroAnimInstanceProxy& Proxy)
 	{
 		LeftHandTransform = FTransform::Identity;
 	}
+}
+
+void UGtHeroAnimInstance::UpdateIKState(const FGtHeroAnimInstanceProxy& Proxy)
+{
+	// 기본 규칙: 원거리 전투 상태인지
+	const bool bShouldBeEnabledByDefault = Proxy.CachedStatusTags.HasTag(GtGameplayTags::Status_Combat_Ranged);
+
+	// 비활성화 규칙: IK를 비활성화하라는 요청 존재 확인
+	const bool bIsOverriddenToDisable = !Proxy.CachedIKDisableTags.IsEmpty();
+
+	// 최종 결정: 기본적으로 켜져야 하지만 태그 블록으로 비활성화되지 않았을 때만 최종적으로 활성화
+	bIsLeftHandIKEnabled = bShouldBeEnabledByDefault && !bIsOverriddenToDisable;
 }
 
 

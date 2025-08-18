@@ -229,7 +229,7 @@ protected:
 	TObjectPtr<UParticleSystem> TrailEffect;
     
 	UPROPERTY(EditDefaultsOnly, Category = "Effects")
-	FName TrailTargetParameterName = TEXT("TrailEnd");
+	FName TrailTargetParameterName = TEXT("ShockBeamEnd");
 
 private:
     //==========================================================================

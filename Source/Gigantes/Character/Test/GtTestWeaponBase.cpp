@@ -3,6 +3,7 @@
 #include "TestGtGameplayTags.h"
 #include "Components/SphereComponent.h"
 #include "Curves/CurveVector.h"
+#include "Engine/SkeletalMeshSocket.h"
 #include "Gigantes/GtGameplayTags.h"
 #include "Gigantes/Character/GtHeroCharacter.h"
 #include "Gigantes/Gameplay/Damage/GtDamageable.h"
@@ -236,6 +237,12 @@ void AGtTestWeaponBase::TestFire()
     APawn* OwnerPawn = Cast<APawn>(WeaponOwner);
     if (!OwnerPawn)
         return;
+
+    // 원거리 전투 태그 처리
+    if (AGtCharacterBase* Character = Cast<AGtCharacterBase>(WeaponOwner))
+    {
+        Character->NotifyCombatAction();
+    }
     
     CurrentAmmo--;
     // 연사 카운트 증가
@@ -605,7 +612,7 @@ void AGtTestWeaponBase::StartAiming()
     bIsAiming = true;
 
     Hero->AddStatusTag(GtGameplayTags::Status_Action_Aiming);
-    Hero->bUseAimOffset = true;
+    //Hero->bUseAimOffset = true;
     
     UE_LOG(LogTemp, Log, TEXT("[TestWeapon] Start Aiming"));
 }
@@ -620,7 +627,7 @@ void AGtTestWeaponBase::StopAiming()
     if (AGtHeroCharacter* Hero = Cast<AGtHeroCharacter>(WeaponOwner))
     {
         Hero->RemoveStatusTag(GtGameplayTags::Status_Action_Aiming);
-        Hero->bUseAimOffset = false;
+        //Hero->bUseAimOffset = false;
     }
     
     UE_LOG(LogTemp, Log, TEXT("[TestWeapon] Stop Aiming"));
@@ -628,52 +635,77 @@ void AGtTestWeaponBase::StopAiming()
 
 void AGtTestWeaponBase::PlayMuzzleFlash()
 {
-    if (!MuzzleFlashEffect)
+    if (!MuzzleFlashEffect || !WeaponMesh)
+        return;
+
+    const USkeletalMeshSocket* MuzzleSocket = WeaponMesh->GetSocketByName(TEXT("MuzzleSocketVFX"));
+    if (!MuzzleSocket)
         return;
     
-    // 컴포넌트가 없으면 처음 한 번만 생성
-    if (!MuzzleFlashComponent)
-    {
-        MuzzleFlashComponent = UGameplayStatics::SpawnEmitterAttached(
-            MuzzleFlashEffect,
-            WeaponMesh,
-            TEXT("MuzzleSocket"),
-            FVector::ZeroVector,
-            FRotator::ZeroRotator,
-            FVector(MuzzleFlashScale),
-            EAttachLocation::SnapToTarget,
-            false  // Auto Destroy 끄기
-        );
-        
-        if (MuzzleFlashComponent)
-        {
-            MuzzleFlashComponent->bAutoDestroy = false;
-            MuzzleFlashComponent->SetAutoActivate(false);
-        }
-    }
+    // 소켓의 현재 트랜스폼 가져오기
+    FTransform SocketTransform = MuzzleSocket->GetSocketTransform(WeaponMesh);
     
-    // 이펙트 재생
-    if (MuzzleFlashComponent)
-    {
-        MuzzleFlashComponent->Activate(true);
+    // 매번 새로 생성 (컴포넌트 재사용하지 않음)
+    UGameplayStatics::SpawnEmitterAttached(
+        MuzzleFlashEffect,
+        WeaponMesh,
+        FName(""),  // 소켓 이름
+        SocketTransform.GetLocation(),
+        FRotator(SocketTransform.GetRotation()),
+        FVector(MuzzleFlashScale),
+        EAttachLocation::KeepWorldPosition,  // World Position 유지
+        true  // Auto Destroy (자동 삭제)
+    );
+    
+    // 컴포넌트가 없으면 처음 한 번만 생성
+    //if (!MuzzleFlashComponent)
+    //{
+        // MuzzleFlashComponent = UGameplayStatics::SpawnEmitterAttached(
+        //     MuzzleFlashEffect,
+        //     WeaponMesh,
+        //     TEXT("MuzzleSocket"),
+        //     FVector::ZeroVector,
+        //     FRotator::ZeroRotator,
+        //     FVector(MuzzleFlashScale),
+        //     EAttachLocation::SnapToTarget,
+        //     true  // Auto Destroy 끄기
+        // );
         
-        // WeakObjectPtr를 사용한 안전한 타이머
-        TWeakObjectPtr<AGtTestWeaponBase> WeakThis(this);
-        
-        GetWorld()->GetTimerManager().ClearTimer(MuzzleFlashOffTimer);
-        GetWorld()->GetTimerManager().SetTimer(
-            MuzzleFlashOffTimer,
-            [WeakThis]()
-            {
-                if (WeakThis.IsValid())
-                {
-                    WeakThis->StopMuzzleFlash();
-                }
-            },
-            MuzzleFlashDuration,
-            false
-        );
-    }
+        // if (MuzzleFlashComponent)
+        // {
+        //     MuzzleFlashComponent->bAutoDestroy = true;
+        //     MuzzleFlashComponent->SetAutoActivate(true);
+        // }
+    //}
+    
+    // // 이펙트 재생
+    // if (MuzzleFlashComponent)
+    // {
+    //     // 매번 소켓에 다시 부착
+    //     MuzzleFlashComponent->AttachToComponent(
+    //         WeaponMesh,
+    //         FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+    //         TEXT("MuzzleSocket")
+    //     );
+    //     
+    //     MuzzleFlashComponent->Activate(true);
+    //     
+    //     TWeakObjectPtr<AGtTestWeaponBase> WeakThis(this);
+    //     
+    //     GetWorld()->GetTimerManager().ClearTimer(MuzzleFlashOffTimer);
+    //     GetWorld()->GetTimerManager().SetTimer(
+    //         MuzzleFlashOffTimer,
+    //         [WeakThis]()
+    //         {
+    //             if (WeakThis.IsValid())
+    //             {
+    //                 WeakThis->StopMuzzleFlash();
+    //             }
+    //         },
+    //         MuzzleFlashDuration,
+    //         false
+    //     );
+    // }
 }
 
 void AGtTestWeaponBase::StopMuzzleFlash()

@@ -135,6 +135,7 @@ void AGtCharacterBase::AddStatusTag(const FGameplayTag& StatusTag)
 
 	StatusTags.AddTag(StatusTag);
 	OnStatusTagChanged.Broadcast(StatusTag, /*bAdded=*/true);
+	OnStatusTagAdded(StatusTag);
 }
 
 void AGtCharacterBase::RemoveStatusTag(const FGameplayTag& StatusTag)
@@ -144,6 +145,75 @@ void AGtCharacterBase::RemoveStatusTag(const FGameplayTag& StatusTag)
 	
 	StatusTags.RemoveTag(StatusTag);
 	OnStatusTagChanged.Broadcast(StatusTag, /*bAdded=*/false);
+	OnStatusTagRemoved(StatusTag);
+}
+
+void AGtCharacterBase::OnStatusTagAdded(const FGameplayTag& Tag)
+{
+	// Combat 태그가 처음 추가될 때
+	if (Tag.MatchesTag(GtGameplayTags::Status_Combat))
+	{
+		ResetCombatStateTimer();
+	}
+}
+
+void AGtCharacterBase::OnStatusTagRemoved(const FGameplayTag& Tag)
+{
+	// 기본 구현은 비어있음 - 파생 클래스에서 오버라이드
+}
+
+// TODO : 전투 태그를 파라미터로 받도록 수정
+void AGtCharacterBase::NotifyCombatAction()
+{
+	// 아직 전투 상태가 아니라면 태그를 추가하고, 이미 전투 중이라면 타이머만 리셋
+	if (!HasStatusTag(GtGameplayTags::Status_Combat_Ranged)) 
+	{
+		AddStatusTag(GtGameplayTags::Status_Combat_Ranged);
+	}
+	else
+	{
+		ResetCombatStateTimer();
+	}
+}
+
+void AGtCharacterBase::ResetCombatStateTimer()
+{
+	if (GetWorld())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(CombatStateTimer);
+		GetWorld()->GetTimerManager().SetTimer(
+			CombatStateTimer,
+			this,
+			&AGtCharacterBase::ClearAllCombatTags,
+			CombatStateTimeout,
+			false
+		);
+	}
+}
+
+void AGtCharacterBase::ClearAllCombatTags()
+{
+	// Status.Combat 하위의 모든 태그 찾기
+	TArray<FGameplayTag> TagsToRemove;
+	for (const FGameplayTag& Tag : StatusTags)
+	{
+		if (Tag.MatchesTag(GtGameplayTags::Status_Combat))
+		{
+			TagsToRemove.Add(Tag);
+		}
+	}
+    
+	// 태그 제거
+	for (const FGameplayTag& Tag : TagsToRemove)
+	{
+		RemoveStatusTag(Tag);
+	}
+    
+	if (TagsToRemove.Num() > 0)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[%s] Cleared %d combat tags"), 
+			*GetName(), TagsToRemove.Num());
+	}
 }
 
 void AGtCharacterBase::OnAttributePrimaryChanged(const FGameplayTag& AttributePrimaryTag, float OldValue, float NewValue)

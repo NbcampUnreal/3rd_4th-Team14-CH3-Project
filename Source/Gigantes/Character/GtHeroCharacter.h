@@ -49,6 +49,13 @@ public:
 	UGtLoadoutComponent* GetLoadoutComponent() const { return LoadoutComponent; }
 	TSubclassOf<UAnimInstance> GetUnarmedAnimLayer() const { return UnarmedAnimLayer; }
 
+	// IK 비활성화를 요청하는 태그를 추가
+	void AddIKDisableTag(const FGameplayTag& DisableTag);
+	// IK 비활성화 요청이 끝난 태그를 제거
+	void RemoveIKDisableTag(const FGameplayTag& DisableTag);
+	// 현재 IK 비활성화 태그들을 반환
+	const FGameplayTagContainer& GetIKDisableTags() const { return IKDisableTags; }
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
@@ -90,6 +97,8 @@ private:
 	 */
 	void HandleCapsuleSizeChanged(float HalfHeightAdjust, float ScaledHalfHeightAdjust);
 
+	void UpdateAimOffsetState();
+
 public:
 	UPROPERTY(BlueprintReadOnly, Category = "Character")
 	uint8 bIsSprinting : 1;
@@ -130,4 +139,7 @@ protected:
 	int32 MaxJumpCount = 2;
 	
 	int32 JumpCount = 0;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Animation|IK")
+	FGameplayTagContainer IKDisableTags;
 };
