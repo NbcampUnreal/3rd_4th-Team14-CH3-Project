@@ -1,8 +1,8 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
+#include "GtEliteEnemyHitboxNotify.h"
 #include "GtEliteEnemy.h"
 #include "Components/BoxComponent.h"
-#include "GtEliteEnemyHitboxNotify.h"
 
 
 
