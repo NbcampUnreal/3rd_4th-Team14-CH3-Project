@@ -29,6 +29,7 @@ namespace GtGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG(Status_Action_Sliding, "Status.Action.Sliding");
 	UE_DEFINE_GAMEPLAY_TAG(Status_Action_Sprinting, "Status.Action.Sprinting");
 	UE_DEFINE_GAMEPLAY_TAG(Status_Action_Aiming, "Status.Action.Aiming");
+	UE_DEFINE_GAMEPLAY_TAG(Status_Action_Reloading, "Status.Action.Reloading");
 	UE_DEFINE_GAMEPLAY_TAG(Status_Dead, "Status.Dead");
 
 	/** Status Combat Tags */
@@ -40,5 +41,20 @@ namespace GtGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG(Animation_IK_Disable_Reloading, "Animation.IK.Disable.Reloading");
 	UE_DEFINE_GAMEPLAY_TAG(Animation_IK_Disable_Grenade, "Animation.IK.Disable.Grenade");
 	UE_DEFINE_GAMEPLAY_TAG(Animation_IK_Disable_Interaction, "Animation.IK.Disable.Interaction");
+
+	/* Weapons */
+	UE_DEFINE_GAMEPLAY_TAG(Item_Weapon_HandGun, "Item.Weapon.HandGun");
+	UE_DEFINE_GAMEPLAY_TAG(Item_Weapon_Rifle, "Item.Weapon.Rifle");
+	UE_DEFINE_GAMEPLAY_TAG(Item_Weapon_Sniper, "Item.Weapon.Sniper");
+
+	/* Grenade */
+	UE_DEFINE_GAMEPLAY_TAG(Item_Grenade_Normal, "Item.Grenade.Normal");
+	UE_DEFINE_GAMEPLAY_TAG(Item_Grenade_Flash, "Item.Grenade.Flash");
+	UE_DEFINE_GAMEPLAY_TAG(Item_Grenade_Gravity, "Item.Grenade.Gravity");
+
+	/* Consumable */
+	UE_DEFINE_GAMEPLAY_TAG(Item_Consumable_Potion, "Item.Consumable.Potion");
+	UE_DEFINE_GAMEPLAY_TAG(Item_Consumable_HealKit, "Item.Consumable.HealKit");
+	UE_DEFINE_GAMEPLAY_TAG(Item_Consumable_HealPack, "Item.Consumable.HealPack");
 
 }

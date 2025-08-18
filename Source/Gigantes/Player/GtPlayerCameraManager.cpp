@@ -9,8 +9,10 @@
 #include "Gigantes/GtGameplayTags.h"
 #include "Gigantes/Character/GtHeroCharacter.h"
 #include "Gigantes/Character/Components/GtHeroMovementComponent.h"
+#include "Gigantes/Character/Test/GtTestWeaponBase.h"
 #include "Gigantes/Equipments/Components/GtLoadoutComponent.h"
-#include "Gigantes/Items/Weapons/GtWeaponItem.h"
+#include "Gigantes/Items/Runtime/Weapons/GtWeaponItem.h"
+
 
 AGtPlayerCameraManager::AGtPlayerCameraManager()
 {
@@ -72,7 +74,7 @@ void AGtPlayerCameraManager::OnCharacterStatusTagChanged(const FGameplayTag& Sta
         AGtHeroCharacter* Hero = GetHeroCharacter();
         if (Hero && Hero->GetLoadoutComponent())
         {
-            AGtWeaponItem* CurrentWeapon = Hero->GetLoadoutComponent()->GetCurrentEquippedWeapon();
+            AGtTestWeaponBase* CurrentWeapon = Hero->GetLoadoutComponent()->GetCurrentEquippedWeapon();
             if (CurrentWeapon && CurrentWeapon->Implements<UGtCameraModifierSource>())
             {
                 FGtCameraModifier Modifier;
