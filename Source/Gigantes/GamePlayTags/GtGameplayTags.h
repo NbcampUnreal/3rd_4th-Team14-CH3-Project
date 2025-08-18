@@ -1,0 +1,20 @@
+#pragma once
+#include "NativeGameplayTags.h"
+
+namespace GtGameplayTags
+{
+	/* Weapons */
+	GIGANTES_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Item_Weapon_HandGun);
+	GIGANTES_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Item_Weapon_Rifle);
+	GIGANTES_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Item_Weapon_Sniper);
+
+	/* Grenades */
+	GIGANTES_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Item_Grenade_Normal);
+	GIGANTES_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Item_Grenade_Flash);
+	GIGANTES_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Item_Grenade_Gravity);
+
+	/* Consumable */
+	GIGANTES_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Item_Consumable_Potion);
+	GIGANTES_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Item_Consumable_HealKit);
+	GIGANTES_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Item_Consumable_HealPack);
+}

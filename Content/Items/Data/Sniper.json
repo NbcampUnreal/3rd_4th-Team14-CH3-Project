@@ -1,0 +1,16 @@
+[
+  {
+    "ItemId": "weapon_sniper_01",
+    "ItemName": "Bolt Sniper",
+    "ItemType": "Weapon",
+    "SubType": "Sniper",
+    "Description": "High damage, low spread.",
+    "Damage": 90,
+    "MaxAmmo": 5,
+    "AmmoInMagazine": 5,
+    "FireRate": 1.2,
+    "ReloadTime": 2.5,
+    "ItemTag": "Item.Weapon.Sniper",
+    "ClassPath": "/Game/Items/Blueprints/BP_GtSniper.BP_GtSniper_C"
+  }
+]

@@ -1,0 +1,16 @@
+[
+  {
+    "ItemId": "rifle_ak47_01",
+    "ItemName": "AK-47",
+    "ItemType": "Weapon",
+    "SubType": "Rifle",
+    "Description": "Full auto assault rifle",
+    "Damage": 30,
+    "MaxAmmo": 30,
+    "AmmoInMagazine": 30,
+    "FireRate": 0.09,
+    "ReloadTime": 2.2,
+    "ItemTag": "Item.Weapon.Rifle",
+    "ClassPath": "/Game/Items/Blueprints/BP_GtRifle.BP_GtRifle_C"
+  }
+]
