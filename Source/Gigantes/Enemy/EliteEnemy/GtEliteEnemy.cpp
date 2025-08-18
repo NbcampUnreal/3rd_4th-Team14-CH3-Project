@@ -18,7 +18,6 @@ AGtEliteEnemy::AGtEliteEnemy()
 	HitBox_R = CreateDefaultSubobject<UBoxComponent>(TEXT("HitBox_R"));
 	HitBox_L = CreateDefaultSubobject<UBoxComponent>(TEXT("HitBox_L"));
 	
-	
 	HitBox_R->SetGenerateOverlapEvents(true);
 	HitBox_R->SetupAttachment(SkeletalMesh, TEXT("lowerarm_r"));
 	HitBox_R->OnComponentBeginOverlap.AddDynamic(this, &AGtEliteEnemy::Attack);
@@ -45,7 +44,6 @@ void AGtEliteEnemy::Attack(UPrimitiveComponent* OverlappedComponent, AActor* Oth
 {
 	//give damage
 }
-
 
 void AGtEliteEnemy::BeginPlay()
 {
@@ -179,11 +177,9 @@ void AGtEliteEnemy::PlayerTrace()
 		SetActorRotation(NewRotation);
 }
 
-
 void AGtEliteEnemy::Attackt01()
 {
 	Patern.Add(1);
-	
 }
 void AGtEliteEnemy::Attackt02()
 {

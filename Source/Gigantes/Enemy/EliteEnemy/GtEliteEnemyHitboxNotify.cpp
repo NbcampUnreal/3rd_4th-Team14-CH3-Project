@@ -4,9 +4,6 @@
 #include "GtEliteEnemy.h"
 #include "Components/BoxComponent.h"
 
-
-
-
 void UGtEliteEnemyHitboxNotify::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration)
 {
     if (AGtEliteEnemy* Enemy = Cast<AGtEliteEnemy>(MeshComp->GetOwner()))
