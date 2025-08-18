@@ -64,6 +64,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Status")
 	void RemoveStatusTag(const FGameplayTag& StatusTag);
 
+	// 전투 액션 알림 (타이머만 리셋)
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	void NotifyCombatAction();
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -77,6 +81,14 @@ protected:
 
 	UFUNCTION()
 	void HandleDamageResult(const FGtDamageResult& DamageResult);
+
+	// 전투 상태 관리
+	void ResetCombatStateTimer();
+	void ClearAllCombatTags();
+
+	// 파생 클래스에서 오버라이드 가능
+	virtual void OnStatusTagAdded(const FGameplayTag& Tag);
+	virtual void OnStatusTagRemoved(const FGameplayTag& Tag);
 	
 public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Attributes")
@@ -92,11 +104,17 @@ public:
 	FOnStatusTagChanged OnStatusTagChanged;
 
 	UFUNCTION(BlueprintCallable, Category = "Status")
-	const FGameplayTagContainer& GetStatusTags() { return StatusTags; };
+	const FGameplayTagContainer& GetStatusTags() const { return StatusTags; };
 	
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Status")
 	FGameplayTagContainer StatusTags;
 
 	TMap<FGameplayTag, FAttributeChangedHandler> AttributeChangedHandlers;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Combat")
+	float CombatStateTimeout = 5.0f;
+
+private:
+	FTimerHandle CombatStateTimer;
 };

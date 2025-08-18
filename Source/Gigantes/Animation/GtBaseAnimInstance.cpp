@@ -16,20 +16,47 @@ void FGtBaseAnimInstanceProxy::PreUpdate(UAnimInstance* InAnimInstance, float De
 	
 	if (!InAnimInstance) return;
 	
-	if (AGtCharacterBase* OwningCharacter = Cast<AGtCharacterBase>(InAnimInstance->GetOwningActor()))
+	AGtCharacterBase* OwningCharacter = Cast<AGtCharacterBase>(InAnimInstance->GetOwningActor());
+    if (!IsValid(OwningCharacter)) return;
+
+    UpdateMovementData(OwningCharacter);
+    UpdateRotationData(OwningCharacter);
+    UpdateStatusData(OwningCharacter);
+}
+
+void FGtBaseAnimInstanceProxy::UpdateMovementData(const AGtCharacterBase* Character)
+{
+	if (!Character) return;
+    
+	CachedVelocity = Character->GetVelocity();
+    
+	UCharacterMovementComponent* MovementComponent = Character->GetCharacterMovement();
+	if (MovementComponent)
 	{
-		Velocity = OwningCharacter->GetVelocity();
-		ActorRotation = OwningCharacter->GetActorRotation();
-		CachedStatusTags = OwningCharacter->GetStatusTags();
-		
-        
-		if (UCharacterMovementComponent* MovementComponent = OwningCharacter->GetCharacterMovement())
-		{
-			bIsFalling = MovementComponent->IsFalling();
-			bIsMovingOnGround = MovementComponent->IsMovingOnGround();
-			Acceleration = MovementComponent->GetCurrentAcceleration();
-		}
+		bCachedIsFalling = MovementComponent->IsFalling();
+		bCachedIsMovingOnGround = MovementComponent->IsMovingOnGround();
+		CachedAcceleration = MovementComponent->GetCurrentAcceleration();
 	}
+	else
+	{
+		bCachedIsFalling = false;
+		bCachedIsMovingOnGround = false;
+		CachedAcceleration = FVector::ZeroVector;
+	}
+}
+
+void FGtBaseAnimInstanceProxy::UpdateRotationData(const AGtCharacterBase* Character)
+{
+	if (!Character) return;
+    
+	CachedActorRotation = Character->GetActorRotation();
+}
+
+void FGtBaseAnimInstanceProxy::UpdateStatusData(const AGtCharacterBase* Character)
+{
+	if (!Character) return;
+    
+	CachedStatusTags = Character->GetStatusTags();
 }
 
 FAnimInstanceProxy* UGtBaseAnimInstance::CreateAnimInstanceProxy()
@@ -46,30 +73,60 @@ void UGtBaseAnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds)
 {
 	Super::NativeThreadSafeUpdateAnimation(DeltaSeconds);
 
-	// 중요: 엔진 내부 프록시 사용
 	const auto& BaseAnimProxy = GetProxyOnAnyThread<FGtBaseAnimInstanceProxy>();
 
 	StatusTags = BaseAnimProxy.CachedStatusTags;
-	GroundSpeed = BaseAnimProxy.Velocity.Size2D();
-	ActorWorldRotation = BaseAnimProxy.ActorRotation;
-	YawDeltaLastFrame = ActorWorldRotation.Yaw - PrevActorWorldRotation.Yaw;
-	PrevActorWorldRotation = ActorWorldRotation;
-	
-	LocomotionDirection = UKismetAnimationLibrary::CalculateDirection(BaseAnimProxy.Velocity, BaseAnimProxy.ActorRotation);
-	bIsInAir = BaseAnimProxy.bIsFalling;
-	bIsOnGround = BaseAnimProxy.bIsMovingOnGround;
-	bIsJumping = bIsInAir && BaseAnimProxy.Velocity.Z > 0;
-	bIsFalling = bIsInAir && BaseAnimProxy.Velocity.Z <= 0;
-	FallSpeed = BaseAnimProxy.Velocity.Z;
-
-	const FVector WorldVelocity2D = BaseAnimProxy.Velocity * FVector(1.f, 1.f, 0.f);
-	const FVector LocalVelocity2D = BaseAnimProxy.ActorRotation.UnrotateVector(WorldVelocity2D);
-	bHasVelocity = !UKismetMathLibrary::NearlyEqual_FloatFloat(UKismetMathLibrary::VSizeXYSquared(LocalVelocity2D), 0.f);
-	
-	const FVector WorldAcceleration2D = BaseAnimProxy.Acceleration * FVector(1.f, 1.f, 0.f);
-	const FVector LocalAcceleration2D = BaseAnimProxy.ActorRotation.UnrotateVector(WorldAcceleration2D);
-	bHasAcceleration = !UKismetMathLibrary::NearlyEqual_FloatFloat(UKismetMathLibrary::VSizeXYSquared(LocalAcceleration2D), 0.f);
+    
+	UpdateRotationValues(BaseAnimProxy);
+	UpdateMovementStates(BaseAnimProxy);
+	UpdateVelocityValues(BaseAnimProxy);
+	UpdateAccelerationValues(BaseAnimProxy);
 	
 }
 
+void UGtBaseAnimInstance::UpdateRotationValues(const FGtBaseAnimInstanceProxy& Proxy)
+{
+	ActorWorldRotation = Proxy.CachedActorRotation;
+	YawDeltaLastFrame = ActorWorldRotation.Yaw - PrevActorWorldRotation.Yaw;
+	PrevActorWorldRotation = ActorWorldRotation;
+    
+	LocomotionDirection = UKismetAnimationLibrary::CalculateDirection(
+		Proxy.CachedVelocity, 
+		Proxy.CachedActorRotation
+	);
+}
+
+void UGtBaseAnimInstance::UpdateMovementStates(const FGtBaseAnimInstanceProxy& Proxy)
+{
+	bIsInAir = Proxy.bCachedIsFalling;
+	bIsOnGround = Proxy.bCachedIsMovingOnGround;
+
+	bIsJumping = bIsInAir && Proxy.CachedVelocity.Z > 0;
+	bIsFalling = bIsInAir && Proxy.CachedVelocity.Z <= 0;
+
+	GroundSpeed = Proxy.CachedVelocity.Size2D();
+	FallSpeed = Proxy.CachedVelocity.Z;
+}
+
+void UGtBaseAnimInstance::UpdateVelocityValues(const FGtBaseAnimInstanceProxy& Proxy)
+{
+	const FVector WorldVelocity2D = Proxy.CachedVelocity * FVector(1.f, 1.f, 0.f);
+	const FVector LocalVelocity2D = Proxy.CachedActorRotation.UnrotateVector(WorldVelocity2D);
+    
+	bHasVelocity = !UKismetMathLibrary::NearlyEqual_FloatFloat(
+		UKismetMathLibrary::VSizeXYSquared(LocalVelocity2D), 
+		0.0f
+	);
+}
+
+void UGtBaseAnimInstance::UpdateAccelerationValues(const FGtBaseAnimInstanceProxy& Proxy)
+{
+	const FVector WorldAcceleration2D = Proxy.CachedAcceleration * FVector(1.f, 1.f, 0.f);
+	const FVector LocalAcceleration2D = Proxy.CachedActorRotation.UnrotateVector(WorldAcceleration2D);
+    
+	bHasAcceleration = !UKismetMathLibrary::NearlyEqual_FloatFloat(
+		UKismetMathLibrary::VSizeXYSquared(LocalAcceleration2D), 
+		0.0f
+	);
+}
 

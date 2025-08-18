@@ -19,13 +19,17 @@ struct FGtBaseAnimInstanceProxy  : public FAnimInstanceProxy
 	virtual void PreUpdate(UAnimInstance* InAnimInstance, float DeltaSeconds) override;
 	
 	// 워커 스레드에서 안전하게 사용할 캐시된 데이터들
-	FVector Velocity;
-	FVector Acceleration;
-	FRotator ActorRotation;
-	bool bIsFalling;
-	bool bIsMovingOnGround;
+	FVector CachedVelocity;
+	FVector CachedAcceleration;
+	FRotator CachedActorRotation;
+	bool bCachedIsFalling;
+	bool bCachedIsMovingOnGround;
 	FGameplayTagContainer CachedStatusTags;
-	
+
+private:
+	void UpdateMovementData(const AGtCharacterBase* Character);
+	void UpdateRotationData(const AGtCharacterBase* Character);
+	void UpdateStatusData(const AGtCharacterBase* Character);
 };
 
 UCLASS()
@@ -39,6 +43,12 @@ protected:
 	virtual FAnimInstanceProxy* CreateAnimInstanceProxy() override;
 	virtual void DestroyAnimInstanceProxy(FAnimInstanceProxy* InProxy) override;
 
+private:
+	void UpdateRotationValues(const FGtBaseAnimInstanceProxy& Proxy);
+	void UpdateMovementStates(const FGtBaseAnimInstanceProxy& Proxy);
+	void UpdateVelocityValues(const FGtBaseAnimInstanceProxy& Proxy);
+	void UpdateAccelerationValues(const FGtBaseAnimInstanceProxy& Proxy);
+	
 public:
 	UPROPERTY(BlueprintReadOnly, Category = "Rotation")
 	FRotator ActorWorldRotation;

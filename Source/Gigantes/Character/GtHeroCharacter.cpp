@@ -5,7 +5,10 @@
 #include "Components/GtHeroMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Gigantes/GtGameplayTags.h"
+#include "Gigantes/Equipments/Components/GtLoadoutComponent.h"
 #include "Gigantes/Input/GtInputComponent.h"
+#include "Gigantes/Items/Manager/GtItemManagerComponent.h"
+#include "Test/TestGtGameplayTags.h"
 
 AGtHeroCharacter::AGtHeroCharacter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UGtHeroMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -25,6 +28,11 @@ AGtHeroCharacter::AGtHeroCharacter(const FObjectInitializer& ObjectInitializer)
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom);
 	FollowCamera->bUsePawnControlRotation = false;
+
+	// TODO : 플레이어 컨트롤러로 이전 고민
+	ItemManager = CreateDefaultSubobject<UGtItemManagerComponent>(TEXT("ItemManager"));
+	
+	LoadoutComponent = CreateDefaultSubobject<UGtLoadoutComponent>(TEXT("LoadoutComponent"));
 }
 
 // Called when the game starts or when spawned
@@ -38,6 +46,10 @@ void AGtHeroCharacter::BeginPlay()
 	if (HeroMovementComponent)
 	{
 		HeroMovementComponent->OnCapsuleSizeChanged.BindUObject(this, &AGtHeroCharacter::HandleCapsuleSizeChanged);
+	}
+	if (LoadoutComponent)
+	{
+		LoadoutComponent->OnEquipmentWeaponChanged.AddDynamic(this, &AGtHeroCharacter::OnEquipmentChanged);
 	}
 }
 
@@ -63,6 +75,17 @@ void AGtHeroCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_Crouch, ETriggerEvent::Started, this, &ThisClass::Input_Crouch);
 	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_Sprint, ETriggerEvent::Started, this, &ThisClass::Input_SprintStart);
 	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_Sprint, ETriggerEvent::Completed, this, &ThisClass::Input_SprintStop);
+	
+	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_PrimaryAction, ETriggerEvent::Started, this, &ThisClass::Input_PrimaryActionPressed);
+	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_PrimaryAction, ETriggerEvent::Completed, this, &ThisClass::Input_PrimaryActionReleased);
+	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_SecondaryAction, ETriggerEvent::Started, this, &ThisClass::Input_SecondaryActionPressed);
+	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_SecondaryAction, ETriggerEvent::Completed, this, &ThisClass::Input_SecondaryActionReleased);
+	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_Reload, ETriggerEvent::Started, this, &ThisClass::Input_Reload);
+	
+	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_EquipSlot1, ETriggerEvent::Started, this, &ThisClass::Input_EquipSlot1);
+	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_EquipSlot2, ETriggerEvent::Started, this, &ThisClass::Input_EquipSlot2);
+	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_UseGrenade, ETriggerEvent::Started, this, &ThisClass::Input_UseGrenadeSlot);
+	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_UseConsumable, ETriggerEvent::Started, this, &ThisClass::Input_UseConsumableSlot);
 }
 
 void AGtHeroCharacter::Input_Move(const FInputActionValue& InputActionValue)
@@ -180,6 +203,108 @@ void AGtHeroCharacter::Input_SprintStart(const FInputActionValue& InputActionVal
 void AGtHeroCharacter::Input_SprintStop(const FInputActionValue& InputActionValue)
 {
 	UnSprint();
+}
+
+void AGtHeroCharacter::Input_PrimaryActionPressed(const FInputActionValue& InputActionValue)
+{
+	// TODO : 행동 가능 상태 체크를 어떻게 구현할지 고민
+	if (HasStatusTag(GtGameplayTags::Status_Dead))
+	{
+		return; 
+	}
+	
+	if (LoadoutComponent)
+	{
+		LoadoutComponent->PrimaryActionPressed();
+	}
+}
+
+void AGtHeroCharacter::Input_PrimaryActionReleased(const FInputActionValue& InputActionValue)
+{
+	// TODO : 행동 가능 상태 체크를 어떻게 구현할지 고민
+	if (HasStatusTag(GtGameplayTags::Status_Dead))
+	{
+		return; 
+	}
+	
+	if (LoadoutComponent)
+	{
+		LoadoutComponent->PrimaryActionReleased();
+	}
+}
+
+void AGtHeroCharacter::Input_SecondaryActionPressed(const FInputActionValue& InputActionValue)
+{
+	// TODO : 행동 가능 상태 체크를 어떻게 구현할지 고민
+	if (HasStatusTag(GtGameplayTags::Status_Dead))
+	{
+		return; 
+	}
+	
+	if (LoadoutComponent)
+	{
+		LoadoutComponent->SecondaryActionPressed();
+	}
+}
+
+void AGtHeroCharacter::Input_SecondaryActionReleased(const FInputActionValue& InputActionValue)
+{
+	// TODO : 행동 가능 상태 체크를 어떻게 구현할지 고민
+	if (HasStatusTag(GtGameplayTags::Status_Dead))
+	{
+		return; 
+	}
+	
+	if (LoadoutComponent)
+	{
+		LoadoutComponent->SecondaryActionReleased();
+	}
+}
+
+void AGtHeroCharacter::Input_Reload(const FInputActionValue& InputActionValue)
+{
+	// TODO : 행동 가능 상태 체크를 어떻게 구현할지 고민
+	if (HasStatusTag(GtGameplayTags::Status_Dead))
+	{
+		return; 
+	}
+	
+	if (LoadoutComponent)
+	{
+		LoadoutComponent->ReloadAction();
+	}
+}
+
+void AGtHeroCharacter::Input_EquipSlot1(const FInputActionValue& InputActionValue)
+{
+	if (LoadoutComponent)
+	{
+		LoadoutComponent->ChangeActiveWeaponSlot(GtGameplayTags::Loadout_Slot_Weapon_Primary);
+	}
+}
+
+void AGtHeroCharacter::Input_EquipSlot2(const FInputActionValue& InputActionValue)
+{
+	if (LoadoutComponent)
+	{
+		LoadoutComponent->ChangeActiveWeaponSlot(GtGameplayTags::Loadout_Slot_Weapon_Secondary);
+	}
+}
+
+void AGtHeroCharacter::Input_UseGrenadeSlot(const FInputActionValue& InputActionValue)
+{
+	if (LoadoutComponent)
+	{
+		LoadoutComponent->UseItemInSlot(GtGameplayTags::Loadout_Slot_Grenade);
+	}
+}
+
+void AGtHeroCharacter::Input_UseConsumableSlot(const FInputActionValue& InputActionValue)
+{
+	if (LoadoutComponent)
+	{
+		LoadoutComponent->UseItemInSlot(GtGameplayTags::Loadout_Slot_Consumable);
+	}
 }
 
 bool AGtHeroCharacter::CanJumpInternal_Implementation() const
@@ -374,9 +499,58 @@ void AGtHeroCharacter::OnCharacterStatusTagChanged(const FGameplayTag& StatusTag
 {
 	// TODO : OnMovementModeChanged에서 처리하는 로직으로 대체 고려
 	const bool bIsWallRunTag = StatusTag.MatchesTag(GtGameplayTags::Status_Action_WallRunning);
-
 	if (bIsWallRunTag && bAdded)
 	{
 		JumpCount = 0;
 	}
+    
+	// 조준 또는 전투 상태 변경 시 AimOffset 업데이트
+	if (StatusTag == GtGameplayTags::Status_Action_Aiming || 
+		StatusTag == GtGameplayTags::Status_Combat_Ranged)
+	{
+		UpdateAimOffsetState();
+	}
+}
+
+void AGtHeroCharacter::OnEquipmentChanged(AGtWeaponItem* NewWeapon)
+{
+	// NewWeapon이 nullptr이면 무기 해제/유효한 포인터이면 무기 장착 상태
+	bIsEquipped = (NewWeapon != nullptr);
+
+	if (bIsEquipped)
+	{
+		// 무기 장착 시 (Strafing 모드)
+		GetCharacterMovement()->bOrientRotationToMovement = false;
+		bUseControllerRotationYaw = true;
+
+		// TODO : 임시 코드로써 추후 무기 데이터에서 JointTargetLocation = WeaponItem->GetJointTargetLocation() 와 같이 가져오도록 수정
+		JointTargetLocation = FVector(20.0, 45.0, -90.0);
+	}
+	else
+	{
+		// 무기 해제 시 (일반 이동 모드)
+		GetCharacterMovement()->bOrientRotationToMovement = true;
+		bUseControllerRotationYaw = false;
+		JointTargetLocation = FVector::ZeroVector;
+	}
+}
+
+void AGtHeroCharacter::UpdateAimOffsetState()
+{
+	const bool bShouldEnableAimOffset = HasStatusTag(GtGameplayTags::Status_Action_Aiming) || HasStatusTag(GtGameplayTags::Status_Combat_Ranged);
+    
+	if (bUseAimOffset != bShouldEnableAimOffset)
+	{
+		bUseAimOffset = bShouldEnableAimOffset;
+	}
+}
+
+void AGtHeroCharacter::AddIKDisableTag(const FGameplayTag& DisableTag)
+{
+	IKDisableTags.AddTag(DisableTag);
+}
+
+void AGtHeroCharacter::RemoveIKDisableTag(const FGameplayTag& DisableTag)
+{
+	IKDisableTags.RemoveTag(DisableTag);
 }

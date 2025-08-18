@@ -98,6 +98,16 @@ public:
     
 	UFUNCTION(BlueprintPure, Category = "Camera")
 	float GetAimOffsetPitch() const { return CurrentAimOffsetPitch; }
+
+	UFUNCTION(BlueprintCallable, Category = "Camera")
+	void SetDynamicModifier(const FGameplayTag& Tag, const FGtCameraModifier& Modifier);
+    
+	UFUNCTION(BlueprintCallable, Category = "Camera")
+	void RemoveDynamicModifier(const FGameplayTag& Tag);
+
+	// // 모든 동적 모디파이어 제거
+	UFUNCTION(BlueprintCallable, Category = "Camera")
+	void ClearAllDynamicModifiers();
 	
 protected:
 	virtual void SetViewTarget(AActor* NewViewTarget, FViewTargetTransitionParams TransitionParams = FViewTargetTransitionParams()) override;
@@ -116,6 +126,8 @@ private:
 	// 캐릭터의 현재 상태를 평가하여 카메라의 목표값을 갱신하는 함수 
 	void UpdateCameraTargets();
 
+	void RecalculateTargets();
+
 	// 베이스 상태 결정 헬퍼 함수
 	FGameplayTag DetermineBaseState(const AGtHeroCharacter* HeroCharacter) const;
     
@@ -129,28 +141,26 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Camera Options|Priority")
 	TArray<FGameplayTag> BaseStatePriority;
 	
-	// 상태 태그를 키로, 카메라 베이스 옵션을 값으로 갖는 TMap 
+	// 베이스 상태 (크라우치, 슬라이드 등) - 에디터 설정
 	UPROPERTY(EditDefaultsOnly, Category = "Camera Options|Base")
 	TMap<FGameplayTag, FGtCameraOption> BaseCameraOptionsMap;
-
-	// TODO: 여기서 데이터 관리보다 무기에서 카메라 정보 가지고 있는게 좋아보임 
-	UPROPERTY(EditDefaultsOnly, Category = "Camera Options|Modifiers")
-	TMap<FGameplayTag, FGtCameraModifier> ActionModifierMap;
 
 	// 어떤 상태에도 해당하지 않을 때(서 있을 때 등) 사용할 기본 옵션
 	UPROPERTY(EditDefaultsOnly, Category = "Camera Options|Base")
 	FGtCameraOption DefaultCameraOptions;
 
 private:
+	// 런타임에 동적으로 추가/제거되는 모디파이어들
+	TMap<FGameplayTag, FGtCameraModifier> DynamicModifierMap;
 	
-	float CurrentCameraOffset = 0.0f;
-	float TargetCameraOffset = 0.0f;
+	float CurrentCameraOffsetZ = 0.0f;
+	float TargetCameraOffsetZ = 0.0f;
 
 	float CurrentFOV = 90.0f;
 	float TargetFOV = 90.0f;
 
-	float CurrentSpringArmLength = 300.0f;
-	float TargetSpringArmLength = 300.0f;
+	float CurrentSpringArmLength = 250.0f;
+	float TargetSpringArmLength = 250.0f;
 
 	float CurrentTransitionSpeed = 10.0f;
 	

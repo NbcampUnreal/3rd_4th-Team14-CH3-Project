@@ -41,7 +41,8 @@ public class Gigantes : ModuleRules
 			"Source/Gigantes/UI",
 			"Source/Gigantes/Input",
 			"Source/Gigantes/Gameplay",
-			"Source/Gigantes/Animation"
+			"Source/Gigantes/Animation",
+			"Source/Gigantes/Equipments"
 		});
 		
 		// Uncomment if you are using Slate UI

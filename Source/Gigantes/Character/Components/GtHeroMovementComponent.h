@@ -207,6 +207,13 @@ public:
 	uint8 bWantsToSprint : 1;
 
 	bool bSprintInputHeld = false;
+
+	/**
+	 * Aim 관련 속성
+	 */
+
+	UPROPERTY(EditDefaultsOnly, Category = "Movement|Aim")
+	float AimSpeedMultiplier = 0.5f;  // 조준 시 이동 속도 배율
 	
 protected:
 	UPROPERTY()

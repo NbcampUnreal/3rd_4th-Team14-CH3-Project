@@ -3,11 +3,14 @@
 
 #include "GtPlayerCameraManager.h"
 
+#include "GtCameraModifierSource.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Gigantes/GtGameplayTags.h"
 #include "Gigantes/Character/GtHeroCharacter.h"
 #include "Gigantes/Character/Components/GtHeroMovementComponent.h"
+#include "Gigantes/Equipments/Components/GtLoadoutComponent.h"
+#include "Gigantes/Items/Weapons/GtWeaponItem.h"
 
 AGtPlayerCameraManager::AGtPlayerCameraManager()
 {
@@ -43,7 +46,7 @@ void AGtPlayerCameraManager::SetViewTarget(AActor* NewViewTarget, FViewTargetTra
             PreviousStatusTags = HeroCharacter->GetStatusTags();
             UpdateCameraTargets();
 
-            CurrentCameraOffset = TargetCameraOffset;
+            CurrentCameraOffsetZ = TargetCameraOffsetZ;
             CurrentFOV = TargetFOV;
             CurrentSpringArmLength = TargetSpringArmLength;
         }
@@ -62,6 +65,34 @@ void AGtPlayerCameraManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void AGtPlayerCameraManager::OnCharacterStatusTagChanged(const FGameplayTag& StatusTag, bool bAdded)
 {
+    // 태그가 추가되었을 때
+    if (bAdded)
+    {
+        // 현재는 무기에 의한 모디파이어만 처리
+        AGtHeroCharacter* Hero = GetHeroCharacter();
+        if (Hero && Hero->GetLoadoutComponent())
+        {
+            AGtWeaponItem* CurrentWeapon = Hero->GetLoadoutComponent()->GetCurrentEquippedWeapon();
+            if (CurrentWeapon && CurrentWeapon->Implements<UGtCameraModifierSource>())
+            {
+                FGtCameraModifier Modifier;
+                // 현재 장착한 무기가 이 태그에 대한 모디파이어를 가지고 있는지 확인
+                if (IGtCameraModifierSource::Execute_GetCameraModifierForTag(CurrentWeapon, StatusTag, Modifier))
+                {
+                    // 있다면 동적 모디파이어로 등록
+                    SetDynamicModifier(StatusTag, Modifier);
+                }
+            }
+        }
+    }
+    // 태그가 제거되었을 때
+    else
+    {
+        // 해당 태그로 등록된 모디파이어를 제거
+        RemoveDynamicModifier(StatusTag);
+    }
+    
+    // 액션 태그라면 카메라 목표 값을 재계산
     if (StatusTag.MatchesTag(GtGameplayTags::Status_Action))
     {
         UpdateCameraTargets();
@@ -92,7 +123,7 @@ void AGtPlayerCameraManager::ApplyModifiers(const FGameplayTagContainer& StatusT
     // 모디파이어를 우선순위에 따라 정렬
     TArray<FModifierPair> ActiveModifiers;
     
-    for (const auto& Pair : ActionModifierMap)
+    for (const auto& Pair : DynamicModifierMap)
     {
         if (StatusTags.HasTagExact(Pair.Key))
         {
@@ -117,11 +148,11 @@ void AGtPlayerCameraManager::ApplyModifiers(const FGameplayTagContainer& StatusT
         // Camera Offset Z
         if (Modifier.CameraOffsetZ_Op == EGtCameraValueOperation::Additive)
         {
-            TargetCameraOffset += Modifier.CameraOffsetZ;
+            TargetCameraOffsetZ += Modifier.CameraOffsetZ;
         }
         else
         {
-            TargetCameraOffset = Modifier.CameraOffsetZ;
+            TargetCameraOffsetZ = Modifier.CameraOffsetZ;
         }
         
         // FOV
@@ -157,7 +188,7 @@ void AGtPlayerCameraManager::UpdateCameraTargets()
         return;
     }
 
-    // 1. 베이스 상태 결정
+    // 베이스 상태 결정
     FGameplayTag NewBaseStateTag = DetermineBaseState(HeroCharacter);
     
     // 상태 변경 감지
@@ -172,11 +203,22 @@ void AGtPlayerCameraManager::UpdateCameraTargets()
     CurrentBaseStateTag = NewBaseStateTag;
     PreviousStatusTags = CurrentStatusTags;
 
-    // 2. 베이스 옵션 설정
+    RecalculateTargets();
+}
+
+void AGtPlayerCameraManager::RecalculateTargets()
+{
+    AGtHeroCharacter* HeroCharacter = GetHeroCharacter();
+    if (!HeroCharacter)
+    {
+        return;
+    }
+
+    // 베이스 옵션 설정
     const FGtCameraOption* BaseOptions = BaseCameraOptionsMap.Find(CurrentBaseStateTag);
     if (BaseOptions)
     {
-        TargetCameraOffset = BaseOptions->CameraOffsetZ;
+        TargetCameraOffsetZ = BaseOptions->CameraOffsetZ;
         TargetFOV = BaseOptions->FOV;
         TargetSpringArmLength = BaseOptions->SpringArmLength;
         CurrentTransitionSpeed = BaseOptions->TransitionSpeed;
@@ -184,13 +226,14 @@ void AGtPlayerCameraManager::UpdateCameraTargets()
     else
     {
         // 기본 옵션 사용
-        TargetCameraOffset = DefaultCameraOptions.CameraOffsetZ;
+        TargetCameraOffsetZ = DefaultCameraOptions.CameraOffsetZ;
         TargetFOV = DefaultCameraOptions.FOV;
         TargetSpringArmLength = DefaultCameraOptions.SpringArmLength;
         CurrentTransitionSpeed = DefaultCameraOptions.TransitionSpeed;
     }
     
-    // 3. 모디파이어 적용
+    // 모디파이어 적용
+    const FGameplayTagContainer& CurrentStatusTags = HeroCharacter->GetStatusTags();
     ApplyModifiers(CurrentStatusTags);
 }
 
@@ -220,12 +263,12 @@ void AGtPlayerCameraManager::ApplyCameraBehavior(FTViewTarget& OutVT, float Delt
     OutVT.POV.Location += HeroCharacter->GetActorUpVector() * CapsuleHeightDifference;
 
     // 부드럽게 카메라 높이 보간
-    CurrentCameraOffset = FMath::FInterpTo(CurrentCameraOffset, TargetCameraOffset, DeltaTime, CurrentTransitionSpeed);
+    CurrentCameraOffsetZ = FMath::FInterpTo(CurrentCameraOffsetZ, TargetCameraOffsetZ, DeltaTime, CurrentTransitionSpeed);
     CurrentFOV = FMath::FInterpTo(CurrentFOV, TargetFOV, DeltaTime, CurrentTransitionSpeed);
     CurrentSpringArmLength = FMath::FInterpTo(CurrentSpringArmLength, TargetSpringArmLength, DeltaTime, CurrentTransitionSpeed);
 
     // ViewTarget에 최종 view 정보 적용
-    OutVT.POV.Location += HeroCharacter->GetActorUpVector() * CurrentCameraOffset;
+    OutVT.POV.Location += HeroCharacter->GetActorUpVector() * CurrentCameraOffsetZ;
     OutVT.POV.FOV = CurrentFOV;
 
     if (USpringArmComponent* SpringArm = HeroCharacter->GetCameraBoom())
@@ -257,4 +300,20 @@ void AGtPlayerCameraManager::UpdateAimOffset(const FTViewTarget& VT, float Delta
 AGtHeroCharacter* AGtPlayerCameraManager::GetHeroCharacter() const
 {
     return Cast<AGtHeroCharacter>(GetViewTarget());
+}
+
+void AGtPlayerCameraManager::SetDynamicModifier(const FGameplayTag& Tag, const FGtCameraModifier& Modifier)
+{
+    DynamicModifierMap.Add(Tag, Modifier);
+}
+
+void AGtPlayerCameraManager::RemoveDynamicModifier(const FGameplayTag& Tag)
+{
+    DynamicModifierMap.Remove(Tag);
+}
+
+void AGtPlayerCameraManager::ClearAllDynamicModifiers()
+{
+    DynamicModifierMap.Empty();
+    RecalculateTargets();
 }
