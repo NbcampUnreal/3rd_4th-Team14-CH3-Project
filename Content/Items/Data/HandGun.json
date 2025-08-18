@@ -1,0 +1,16 @@
+[
+  {
+    "ItemId": "weapon_handgun_01",
+    "ItemName": "9mm Pistol",
+    "ItemType": "Weapon",
+    "SubType": "HandGun",
+    "Description": "Reliable sidearm.",
+    "Damage": 25,
+    "MaxAmmo": 12,
+    "AmmoInMagazine": 12,
+    "FireRate": 0.2,
+    "ReloadTime": 1.2,
+    "ItemTag": "Item.Weapon.HandGun",
+    "ClassPath": "/Game/Items/Blueprints/BP_GtHandGun.BP_GtHandGun_C"
+  }
+]

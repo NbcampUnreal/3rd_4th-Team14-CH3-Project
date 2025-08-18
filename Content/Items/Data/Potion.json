@@ -1,0 +1,12 @@
+[
+  {
+    "ItemId": "potion_small_01",
+    "ItemName": "Small Potion",
+    "ItemType": "Consumable",
+    "SubType": "Potion",
+    "Description": "Restores a small amount of health.",
+    "HealAmount": 50,
+    "ItemTag": "Item.Consumable.Potion",
+    "ClassPath": "/Game/Items/Blueprints/BP_Potion.BP_Potion_C"
+  }
+]

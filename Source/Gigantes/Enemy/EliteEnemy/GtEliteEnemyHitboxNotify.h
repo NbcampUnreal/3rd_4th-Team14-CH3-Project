@@ -7,9 +7,6 @@
 #include "GtEliteEnemyHitboxNotify.generated.h"
 
 
-/**
- * 
- */
 UCLASS()
 class GIGANTES_API UGtEliteEnemyHitboxNotify : public UAnimNotifyState
 {
@@ -18,5 +15,4 @@ class GIGANTES_API UGtEliteEnemyHitboxNotify : public UAnimNotifyState
 public:
 	virtual void NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration) override;
 	virtual void NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation) override;
-
 };
