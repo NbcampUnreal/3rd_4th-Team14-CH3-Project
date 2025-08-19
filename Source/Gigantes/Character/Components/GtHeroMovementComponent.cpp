@@ -150,7 +150,7 @@ bool UGtHeroMovementComponent::TryEnterWallRun()
     {
         if (FMath::Abs(WallHit.ImpactNormal.Z) < 0.3f)
         {
-            if (FVector::DotProduct(Forward, -WallHit.ImpactNormal) > 0.1f)
+            if (FVector::DotProduct(Forward, -WallHit.ImpactNormal) > WallRunEntryAngleThreshold)
             {
                 WallRunNormal = WallHit.ImpactNormal;
                 bIsRightWallLocal = true;
@@ -163,7 +163,7 @@ bool UGtHeroMovementComponent::TryEnterWallRun()
     {
         if (FMath::Abs(WallHit.ImpactNormal.Z) < 0.3f)
         {
-            if (FVector::DotProduct(Forward, -WallHit.ImpactNormal) > 0.1f)
+            if (FVector::DotProduct(Forward, -WallHit.ImpactNormal) > WallRunEntryAngleThreshold)
             {
                 WallRunNormal = WallHit.ImpactNormal;
                 bIsRightWallLocal = false;
