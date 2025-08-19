@@ -4,6 +4,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GtEnemyAiController.h"
 #include "Components/SphereComponent.h"
+#include "Kismet/GameplayStatics.h"  // UGameplayStatics 사용 위해
+#include "Gigantes/GameModes/GtGameModeBase.h"
 
 
 AGtEnemyHumanCharacter::AGtEnemyHumanCharacter()
@@ -42,6 +44,20 @@ void AGtEnemyHumanCharacter::Die()
 		{
 			MyAIController->Die();
 		}	
+	}
+
+	// GameMode 가져와서 EnemyKilled 호출 (헤드샷 아니면 false)
+	if (UWorld* World = GetWorld())
+	{
+		AGtGameModeBase* GameMode = Cast<AGtGameModeBase>(UGameplayStatics::GetGameMode(World));
+		if (GameMode)
+		{
+			GameMode->EnemyKilled(false);  // bHeadshot = false (필요 시 데미지 이벤트에서 true 전달)
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("GameMode not found in Die()!"));
+		}
 	}
 }
 

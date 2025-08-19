@@ -26,47 +26,46 @@ void AGtGameModeBase::BeginPlay()
 		GS->RemainingEnemies = MaxEnemies;
 		GS->CurrentScore = 0;
 		GS->ElapsedTime = 0.0f;
-		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("ElapsedTime: "));
 	}
 	
-	if (UClass* MenuClass = LoadClass<UUserWidget>(nullptr, TEXT("/Game/UI/WBP_GtMainMenu.WBP_GtMainMenu_C")))
-	{
-		if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
-		{
-			UUserWidget* MenuWidget = CreateWidget<UUserWidget>(PC, MenuClass);
-			if (MenuWidget)
-			{
-				MenuWidget->AddToViewport();  // 뷰포트에보이게
-				UGameplayStatics::SetGamePaused(GetWorld(), true);  // 일시정지
-				PC->SetShowMouseCursor(true);  // 마우스 커서 보이게
-				PC->SetInputMode(FInputModeUIOnly());  // UI입력모드
-			}
-			else
-			{
-				UE_LOG(LogTemp, Error, TEXT("Failed to create WBP_MainMenu widget!"));
-			}
-		}
-		else
-		{
-			UE_LOG(LogTemp, Error, TEXT("PlayerController not found!"));
-		}
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to load WBP_MainMenu class!"));
-	}
+	// if (UClass* MenuClass = LoadClass<UUserWidget>(nullptr, TEXT("/Game/UI/WBP_GtMainMenu.WBP_GtMainMenu_C")))
+	// {
+	// 	if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+	// 	{
+	// 		UUserWidget* MenuWidget = CreateWidget<UUserWidget>(PC, MenuClass);
+	// 		if (MenuWidget)
+	// 		{
+	// 			MenuWidget->AddToViewport();  // 뷰포트에보이게
+	// 			UGameplayStatics::SetGamePaused(GetWorld(), true);  // 일시정지
+	// 			PC->SetShowMouseCursor(true);  // 마우스 커서 보이게
+	// 			PC->SetInputMode(FInputModeUIOnly());  // UI입력모드
+	// 		}
+	// 		else
+	// 		{
+	// 			UE_LOG(LogTemp, Error, TEXT("Failed to create WBP_MainMenu widget!"));
+	// 		}
+	// 	}
+	// 	else
+	// 	{
+	// 		UE_LOG(LogTemp, Error, TEXT("PlayerController not found!"));
+	// 	}
+	// }
+	// else
+	// {
+	// 	UE_LOG(LogTemp, Error, TEXT("Failed to load WBP_MainMenu class!"));
+	// }
 
-	if (HUDWidgetClass)
-	{
-		if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
-		{
-			UUserWidget* HUD = CreateWidget<UUserWidget>(PC, HUDWidgetClass);
-			if (HUD)
-			{
-				HUD->AddToViewport();  // HUD 뷰포트에 추가 
-			}
-		}
-	}
+	// if (HUDWidgetClass)
+	// {
+	// 	if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+	// 	{
+	// 		UUserWidget* HUD = CreateWidget<UUserWidget>(PC, HUDWidgetClass);
+	// 		if (HUD)
+	// 		{
+	// 			HUD->AddToViewport();  // HUD 뷰포트에 추가 
+	// 		}
+	// 	}
+	// }
 	// 초기화: 적 스폰
 }
 
@@ -125,18 +124,18 @@ void AGtGameModeBase::EndGame(bool bWon)
 	UE_LOG(LogTemp, Warning, TEXT("%s"), bWon ? TEXT("Game Cleared!") : TEXT("Game Over!"));
 	
 	// UI 전환 확장: 결과 화면 위젯 표시 (UMG 예시)
-	if (UClass* ResultClass = LoadClass<UUserWidget>(nullptr, bWon ? TEXT("/Game/UI/WBP_GtClear.WBP_GtClear_C") : TEXT("/Game/UI/WBP_GtGameOver.WBP_GtGameOver_C")))
-	{
-		if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
-		{
-			UUserWidget* ResultWidget = CreateWidget<UUserWidget>(PC, ResultClass);
-			if (ResultWidget)
-			{
-				ResultWidget->AddToViewport();
-				UGameplayStatics::SetGamePaused(GetWorld(), true);
-				PC->SetShowMouseCursor(true);
-				PC->SetInputMode(FInputModeUIOnly());
-			}
-		}
-	}
+	// if (UClass* ResultClass = LoadClass<UUserWidget>(nullptr, bWon ? TEXT("/Game/UI/WBP_GtClear.WBP_GtClear_C") : TEXT("/Game/UI/WBP_GtGameOver.WBP_GtGameOver_C")))
+	// {
+	// 	if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+	// 	{
+	// 		UUserWidget* ResultWidget = CreateWidget<UUserWidget>(PC, ResultClass);
+	// 		if (ResultWidget)
+	// 		{
+	// 			ResultWidget->AddToViewport();
+	// 			UGameplayStatics::SetGamePaused(GetWorld(), true);
+	// 			PC->SetShowMouseCursor(true);
+	// 			PC->SetInputMode(FInputModeUIOnly());
+	// 		}
+	// 	}
+	// }
 }
