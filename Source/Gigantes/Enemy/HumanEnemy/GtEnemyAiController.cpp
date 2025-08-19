@@ -370,4 +370,15 @@ void AGtEnemyAiController::Die()
 {
 	ClearAllTimers();
 	CurrentState = EAiState::Idle;
+	if (AIPerception)
+	{
+	AIPerception->ForgetAll();
+	AIPerception->Deactivate();
+	}
+	if (SightConfig)
+	{
+		SightConfig->SightRadius = 0.0f;
+		SightConfig->LoseSightRadius = 0.0f;
+		AIPerception->RequestStimuliListenerUpdate();
+	}
 }

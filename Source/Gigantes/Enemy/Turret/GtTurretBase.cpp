@@ -71,26 +71,29 @@ void AGtTurretBase::ReloadTimerReset()
 void AGtTurretBase::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
 								   UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	/*
+	
 	if (OtherActor->ActorHasTag("Player"))
-	{*/
+	{
 	UE_LOG(LogTemp, Warning, TEXT("Turrent is Find Enermy"));
 	bIsFindEnermy = true;
 	FindEnemyActor = OtherActor;
 	EnermySearchTimerReset();
 	AttackTimerReset();	
-	//}
+	}
 }
 
 void AGtTurretBase::OnOverlapEnd(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
 	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
+	if (OtherActor->ActorHasTag("Player"))
+	{
 	UE_LOG(LogTemp, Warning, TEXT("Turrent lose Enermy"));
 	bIsFindEnermy = false;
 	FindEnemyActor = nullptr;
 	GetWorldTimerManager().ClearTimer(FindEnermyHandle);
 	GetWorldTimerManager().ClearTimer(AttackReadyHandle);
 	GetWorldTimerManager().ClearTimer(ReloadHandle);
+	}
 }
 
 void AGtTurretBase::LookAt()

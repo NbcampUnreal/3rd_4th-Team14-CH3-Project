@@ -3,6 +3,7 @@
 #include "GtEnemyHumanCharacter.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GtEnemyAiController.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/SphereComponent.h"
 #include "Kismet/GameplayStatics.h"  // UGameplayStatics 사용 위해
 #include "Gigantes/GameModes/GtGameModeBase.h"
@@ -28,9 +29,13 @@ void AGtEnemyHumanCharacter::BeginPlay()
 	
 }
 
+
+
 void AGtEnemyHumanCharacter::Die()
 {
 	Super::Die();
+
+	GetCapsuleComponent()->SetCapsuleSize(0.f, 0.f);
 	
 	USkeletalMeshComponent* MeshComp = GetMesh();
 	if (MeshComp)
