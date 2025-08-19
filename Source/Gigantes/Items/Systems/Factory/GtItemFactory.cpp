@@ -5,6 +5,7 @@
 
 #include "Gigantes/Items/Structs/FGtItemData.h"
 #include "Gigantes/Items/Systems/DataSubSystem/GigantesItemDataSubsystem.h"
+#include "Kismet/GameplayStatics.h"
 
 AActor* UGtItemFactory::SpawnItemById(UWorld* World, const FString& ItemId, const FTransform& SpawnTransform)
 {
@@ -25,22 +26,35 @@ AActor* UGtItemFactory::SpawnItemById(UWorld* World, const FString& ItemId, cons
 	return nullptr;
 }
 
-AActor* UGtItemFactory::SpawnItem(UWorld* World, const FGtItemData& ItemData, const FTransform& SpawnTransform)
+AGtItemBase* UGtItemFactory::SpawnItem(UWorld* World, const FGtItemData& ItemData, const FTransform& Xf)
 {
 	if (!World) return nullptr;
+	UGameInstance* GI = World->GetGameInstance();
+	if (!GI) return nullptr;
 
-	UClass* ItemClass = ItemData.ItemClass.LoadSynchronous(); // ClassPath 우선
-	if (!ItemClass)
+	auto* Sub = GI->GetSubsystem<UGigantesItemDataSubsystem>();
+	if (!Sub || !Sub->IsPreloadFinished()) return nullptr;
+
+	UClass* Cls = Sub->GetHardClassByTag(ItemData.ItemTag);
+	if (!IsValid(Cls))
 	{
-		UE_LOG(LogTemp, Error, TEXT("SpawnItem: Failed to load class for %s"), *ItemData.ItemId);
+		Cls = ItemData.ItemClass.IsValid() ? ItemData.ItemClass.Get() : ItemData.ItemClass.LoadSynchronous();
+	}
+	if (!IsValid(Cls)) return nullptr;
+
+	if (!Cls->IsChildOf(AGtItemBase::StaticClass()))
+	{
+		UE_LOG(LogTemp, Error, TEXT("[ItemFactory] Class %s is not AGtItemBase."), *GetNameSafe(Cls));
 		return nullptr;
 	}
 
-	AActor* Spawned = World->SpawnActor<AActor>(ItemClass, SpawnTransform);
-	if (AGtItemBase* Item = Cast<AGtItemBase>(Spawned))
-	{
-		// 스폰 -> 데이터 바인딩
-		Item->InitFromData(ItemData);
-	}
-	return Spawned;
+	AGtItemBase* Item = World->SpawnActorDeferred<AGtItemBase>(
+		Cls, Xf, nullptr, nullptr,
+		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn);
+
+	if (!Item) return nullptr;
+
+	Item->InitFromData(ItemData);
+	UGameplayStatics::FinishSpawningActor(Item, Xf);
+	return Item;
 }

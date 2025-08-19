@@ -74,7 +74,7 @@ void AGtPlayerCameraManager::OnCharacterStatusTagChanged(const FGameplayTag& Sta
         AGtHeroCharacter* Hero = GetHeroCharacter();
         if (Hero && Hero->GetLoadoutComponent())
         {
-            AGtTestWeaponBase* CurrentWeapon = Hero->GetLoadoutComponent()->GetCurrentEquippedWeapon();
+            AGtWeaponItem* CurrentWeapon = Hero->GetLoadoutComponent()->GetCurrentEquippedWeapon();
             if (CurrentWeapon && CurrentWeapon->Implements<UGtCameraModifierSource>())
             {
                 FGtCameraModifier Modifier;

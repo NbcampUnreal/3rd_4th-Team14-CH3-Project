@@ -4,9 +4,11 @@
 #include "GtEliteEnemy.h"
 
 
-void UGtEliteEnemyAnimNotify::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation)
+void UGtEliteEnemyAnimNotify::Notify(USkeletalMeshComponent* MeshComp,
+						UAnimSequenceBase* Animation,
+						const FAnimNotifyEventReference& EventReference)
 {
-	Super::Notify(MeshComp, Animation);
+	Super::Notify(MeshComp, Animation, EventReference);
 	if (AGtEliteEnemy* Enemy = Cast<AGtEliteEnemy>(MeshComp->GetOwner()))
 	{
 		Enemy->ReAttack();

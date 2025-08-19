@@ -3,10 +3,11 @@
 #include "Gigantes/GtGameplayTags.h"
 #include "Gigantes/Character/GtHeroCharacter.h"
 #include "Gigantes/Character/Components/GtHeroMovementComponent.h"
-#include "Gigantes/Character/Test/GtTestWeaponBase.h"
 #include "Gigantes/Equipments/Components/GtLoadoutComponent.h"
 #include "Gigantes/Player/GtPlayerCameraManager.h"
+#include "Items/Runtime/Weapons/GtWeaponItem.h" 
 
+class AGtWeaponItem;  
 FGtHeroAnimInstanceProxy::FGtHeroAnimInstanceProxy(UAnimInstance* Instance)
 	: FGtBaseAnimInstanceProxy(Instance) 
 {
@@ -80,22 +81,21 @@ void FGtHeroAnimInstanceProxy::UpdateWeaponData(const AGtHeroCharacter* HeroChar
 	bCachedUseAimOffset = HeroCharacter->bUseAimOffset;
 	CachedJointTargetLocation = HeroCharacter->JointTargetLocation;
     
-	UGtLoadoutComponent* LoadoutComponent = HeroCharacter->GetLoadoutComponent();
-	if (!LoadoutComponent) return;
-    
-	if (LoadoutComponent->GetCurrentEquippedWeapon())
+	if (UGtLoadoutComponent* LoadoutComponent = HeroCharacter->GetLoadoutComponent())
 	{
-		// TODO : 테스트 코드로써 추후 WeaponItem에서 가져오도록 해야 함
-		AGtTestWeaponBase* TestWeapon = Cast<AGtTestWeaponBase>(LoadoutComponent->GetCurrentEquippedWeapon());
-		if (TestWeapon)
+		if (AGtWeaponItem* Weapon = Cast<AGtWeaponItem>(LoadoutComponent->GetCurrentEquippedWeapon()))
 		{
-			CachedWeaponItemMesh = TestWeapon->GetWeaponMesh();
+			// 스켈레탈 메쉬 찾아 캐시 (없으면 nullptr)
+			if (USkeletalMeshComponent* Skel = Weapon->FindComponentByClass<USkeletalMeshComponent>())
+			{
+				CachedWeaponItemMesh = Skel;
+				return;
+			}
 		}
 	}
-	else
-	{
-		CachedWeaponItemMesh.Reset();
-	}
+
+	// 무기 없거나 메쉬 못 찾으면 리셋
+	CachedWeaponItemMesh.Reset();
 }
 
 void UGtHeroAnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds)

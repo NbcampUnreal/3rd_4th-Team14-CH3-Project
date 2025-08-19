@@ -27,7 +27,7 @@ public class Gigantes : ModuleRules
 			"DeveloperSettings"
 		});
 
-		PrivateDependencyModuleNames.AddRange(new string[] { "AnimGraph" });
+		PrivateDependencyModuleNames.AddRange(new string[] { "AnimGraph", "AITestSuite", "AITestSuite", "Eigen" });
 		
 		// if (Target.Type == TargetType.Editor)
 		// {
@@ -36,16 +36,18 @@ public class Gigantes : ModuleRules
 		
 		PublicIncludePaths.AddRange(new string[]
 		{
-			"Source/Gigantes/AI",
-			"Source/Gigantes/Character",
-			"Source/Gigantes/GameModes",
-			"Source/Gigantes/Player",
-			"Source/Gigantes/Items",
-			"Source/Gigantes/UI",
-			"Source/Gigantes/Input",
-			"Source/Gigantes/Gameplay",
+			"Gigantes",
 			"Source/Gigantes/Animation",
-			"Source/Gigantes/Equipments"
+			"Source/Gigantes/Character",
+			"Source/Gigantes/Enemy",
+			"Source/Gigantes/Equipments",
+			"Source/Gigantes/GameModes",
+			"Source/Gigantes/Gameplay",
+			"Source/Gigantes/Input",
+			"Source/Gigantes/Items",
+			"Source/Gigantes/Physics",
+			"Source/Gigantes/Player",
+			"Source/Gigantes/UI"
 		});
 		
 		// Uncomment if you are using Slate UI

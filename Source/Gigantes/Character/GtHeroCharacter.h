@@ -6,10 +6,10 @@
 #include "GtHumanBase.h"
 #include "GtHeroCharacter.generated.h"
 
-class AGtTestWeaponBase;
+class UGtInteractionComponent;
+class AGtWeaponItem;
 struct FInputActionValue;
 
-class AGtWeaponItem;
 class UGtLoadoutComponent;
 class UGtItemManagerComponent;
 class UGtHeroMovementComponent;
@@ -24,6 +24,8 @@ class GIGANTES_API AGtHeroCharacter : public AGtHumanBase
 
 public:
 	AGtHeroCharacter(const FObjectInitializer & ObjectInitializer = FObjectInitializer::Get());
+
+	void PossessedBy(AController* NewController);
 
 	virtual void OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode = 0) override;
 	virtual bool CanJumpInternal_Implementation() const override;
@@ -57,6 +59,11 @@ public:
 	// 현재 IK 비활성화 태그들을 반환
 	const FGameplayTagContainer& GetIKDisableTags() const { return IKDisableTags; }
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Interact")
+	UGtInteractionComponent* InteractionComp = nullptr;
+
+	// 입력 핸들러 선언
+	void Input_Interact(const FInputActionValue& Value);
 protected:
 	virtual void BeginPlay() override;
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
@@ -86,7 +93,7 @@ protected:
 	void OnCharacterStatusTagChanged(const FGameplayTag& StatusTag, bool bAdded);
 
 	UFUNCTION()
-	void OnEquipmentChanged(AGtTestWeaponBase* NewWeapon);
+	void OnEquipmentChanged(AGtWeaponItem* NewWeapon);
 
 	bool ShouldStartSlide() const;
 	void StartSlide();

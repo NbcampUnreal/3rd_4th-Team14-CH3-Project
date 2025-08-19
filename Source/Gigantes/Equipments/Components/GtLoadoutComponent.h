@@ -5,7 +5,6 @@
 #include "Gigantes/Items/Structs/FGtItemData.h"
 #include "GtLoadoutComponent.generated.h"
 
-class AGtTestWeaponBase;
 class AGtHeroCharacter;
 class AGtWeaponItem;
 class UGtItemManagerComponent;
@@ -27,7 +26,7 @@ struct FGtLoadoutSlot
 	bool bHasItem = false;
 };
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEquipmentWeaponChanged, AGtTestWeaponBase*, NewWeapon);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEquipmentWeaponChanged, AGtWeaponItem*, NewWeapon);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoadoutSlotChanged, const FGtLoadoutSlot&, UpdatedSlotInfo);
 
 
@@ -64,11 +63,11 @@ public:
 	void ReloadAction();
 
 	UFUNCTION(BlueprintPure, Category = "Loadout")
-	AGtTestWeaponBase* GetCurrentEquippedWeapon() const { return CurrentEquippedWeapon; }
+	AGtWeaponItem* GetCurrentEquippedWeapon() const { return CurrentEquippedWeapon; }
 	
 	// TODO : 테스트 코드로써 삭제 필요
-	UFUNCTION(BlueprintCallable, Category = "Equipment")
-	void EquipTestWeapon();
+	// UFUNCTION(BlueprintCallable, Category = "Equipment")
+	// void EquipTestWeapon();
 	
 protected:
 	virtual void BeginPlay() override;
@@ -91,15 +90,15 @@ public:
 private:
 	
 	// TODO : 테스트용 무기 클래스
-	UPROPERTY(EditDefaultsOnly, Category = "Loadout|Test")
-	TSubclassOf<AGtTestWeaponBase> TestWeaponClass;
+	// UPROPERTY(EditDefaultsOnly, Category = "Loadout|Test")
+	// TSubclassOf<AGtTestWeaponBase> TestWeaponClass;
 
 	UPROPERTY(VisibleAnywhere, Category = "Loadout")
 	TArray<FGtLoadoutSlot> LoadoutSlots;
 	
 	// 현재 관리중인 아이템
 	UPROPERTY()
-	TObjectPtr<AGtTestWeaponBase> CurrentEquippedWeapon = nullptr;
+	TObjectPtr<AGtWeaponItem> CurrentEquippedWeapon = nullptr;
 
 	UPROPERTY()
 	FGameplayTag ActiveWeaponSlotTag;

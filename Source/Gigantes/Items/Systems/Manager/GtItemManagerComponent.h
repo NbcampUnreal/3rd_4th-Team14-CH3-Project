@@ -7,6 +7,20 @@
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnInventoryChanged);
 
+class AGtItemBase;
+class UTexture2D;
+struct FGtItemData;
+
+USTRUCT(BlueprintType)
+struct FGtInventoryViewRow
+{
+	GENERATED_BODY()
+	UPROPERTY(BlueprintReadOnly) int32 Index = INDEX_NONE;
+	UPROPERTY(BlueprintReadOnly) FText DisplayName;
+	UPROPERTY(BlueprintReadOnly) TObjectPtr<UTexture2D> Icon = nullptr;
+	UPROPERTY(BlueprintReadOnly) int32 Count = 1;
+};
+
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class GIGANTES_API UGtItemManagerComponent : public UActorComponent
 {
@@ -14,16 +28,28 @@ class GIGANTES_API UGtItemManagerComponent : public UActorComponent
 
 public:
 	UGtItemManagerComponent();
-	
+
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Inventory")
-	TArray<AGtItemBase*> Inventory;
+	TArray<TObjectPtr<AGtItemBase>> Inventory;
 
 	UPROPERTY(BlueprintAssignable, Category="Inventory")
-	FOnInventoryChanged OnInventoryChanged; // BP 바인딩 가능 범위
+	FOnInventoryChanged OnInventoryChanged;
 
-	UFUNCTION(BlueprintCallable)
-	bool GiveItemById(const FString& ItemId); // 반환값으로 성공여부
+	UFUNCTION(BlueprintCallable, Category="Inventory")
+	bool PickupFromActor(AActor* PickupActor);
 
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, Category="Inventory")
+	bool DropItem(int32 Index, const FTransform& Where);
+
+	UFUNCTION(BlueprintCallable, Category="Inventory")
+	bool GiveItemById(const FString& ItemId);
+
+	UFUNCTION(BlueprintCallable, Category="Inventory")
+	bool GiveItemFromData(const FGtItemData& Data);
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category="Inventory")
+	TArray<FGtInventoryViewRow> GetInventoryView() const;
+
+	UFUNCTION(BlueprintCallable, Category="Inventory")
 	void UseItem(int32 Index);
 };

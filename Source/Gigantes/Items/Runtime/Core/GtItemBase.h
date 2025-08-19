@@ -14,12 +14,15 @@ public:
 	AGtItemBase();
 	
 	virtual void InitFromData(const FGtItemData& data);
-	virtual void UseItem();
-
-	const FGtItemData& GetItemData() const;
+	
+	UFUNCTION(BlueprintCallable, Category="Item")
+	virtual bool UseItem(AActor* User);
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Item|Debug")
 	FString ItemId;
+	
+	const FGtItemData& GetItemData() const;
+
 	
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Item")

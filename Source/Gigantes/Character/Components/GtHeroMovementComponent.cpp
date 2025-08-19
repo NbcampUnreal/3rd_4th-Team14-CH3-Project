@@ -210,7 +210,7 @@ void UGtHeroMovementComponent::StartSlide()
         HeroCharacterOwner->OnEndSprint();
     }
     
-    SetCapsuleSize(CrouchedHalfHeight);
+    SetCapsuleSize(GetCrouchedHalfHeight());
     SetMovementMode(MOVE_Custom, CMM_Slide);
 
     // 속도 부스트

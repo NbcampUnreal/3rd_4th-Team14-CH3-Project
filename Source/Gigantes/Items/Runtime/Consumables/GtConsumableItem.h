@@ -16,8 +16,7 @@ public:
 	virtual void InitFromData(const FGtItemData& InData) override;
 
 	/** 소비(사용) 시 호출. 보통 캐릭터가 자신의 포션을 사용 */
-	UFUNCTION(BlueprintCallable, Category="Consumable")
-	virtual bool UseItem(AActor* User);
+	virtual bool UseItem(AActor* User) override;
 
 protected:
 	/** 사용 후 파괴할지 */

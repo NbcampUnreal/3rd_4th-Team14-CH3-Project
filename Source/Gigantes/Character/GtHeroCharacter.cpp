@@ -6,9 +6,11 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "Gigantes/GtGameplayTags.h"
 #include "Gigantes/Equipments/Components/GtLoadoutComponent.h"
+#include "Gigantes/Items/Runtime/Weapons/GtWeaponItem.h"
 #include "Gigantes/Input/GtInputComponent.h"
 #include "Gigantes/Items/Systems/Manager/GtItemManagerComponent.h"
-#include "Test/TestGtGameplayTags.h"
+#include "Items/Systems/Interaction/GtInteractable.h"
+#include "Items/Systems/Interaction/UGtInteractionComponent.h"
 
 AGtHeroCharacter::AGtHeroCharacter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UGtHeroMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -31,8 +33,14 @@ AGtHeroCharacter::AGtHeroCharacter(const FObjectInitializer& ObjectInitializer)
 
 	// TODO : 플레이어 컨트롤러로 이전 고민
 	ItemManager = CreateDefaultSubobject<UGtItemManagerComponent>(TEXT("ItemManager"));
-	
+	InteractionComp = CreateDefaultSubobject<UGtInteractionComponent>(TEXT("InteractionComp"));
 	LoadoutComponent = CreateDefaultSubobject<UGtLoadoutComponent>(TEXT("LoadoutComponent"));
+}
+
+void AGtHeroCharacter::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+	UE_LOG(LogTemp, Log, TEXT("[Hero] PossessedBy: %s"), *GetNameSafe(NewController));
 }
 
 // Called when the game starts or when spawned
@@ -49,6 +57,7 @@ void AGtHeroCharacter::BeginPlay()
 	}
 	if (LoadoutComponent)
 	{
+		LoadoutComponent->OnEquipmentWeaponChanged.RemoveAll(this);
 		LoadoutComponent->OnEquipmentWeaponChanged.AddDynamic(this, &AGtHeroCharacter::OnEquipmentChanged);
 	}
 }
@@ -86,6 +95,8 @@ void AGtHeroCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_EquipSlot2, ETriggerEvent::Started, this, &ThisClass::Input_EquipSlot2);
 	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_UseGrenade, ETriggerEvent::Started, this, &ThisClass::Input_UseGrenadeSlot);
 	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_UseConsumable, ETriggerEvent::Started, this, &ThisClass::Input_UseConsumableSlot);
+
+	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_Interact, ETriggerEvent::Started, this, &ThisClass::Input_Interact);
 }
 
 void AGtHeroCharacter::Input_Move(const FInputActionValue& InputActionValue)
@@ -203,6 +214,101 @@ void AGtHeroCharacter::Input_SprintStart(const FInputActionValue& InputActionVal
 void AGtHeroCharacter::Input_SprintStop(const FInputActionValue& InputActionValue)
 {
 	UnSprint();
+}
+
+void AGtHeroCharacter::Input_Interact(const FInputActionValue& /*Value*/)
+{
+	UE_LOG(LogTemp, Log, TEXT("[Hero] Interact pressed"));
+	
+	// 0) 매니저 확보
+    if (!ItemManager) ItemManager = FindComponentByClass<UGtItemManagerComponent>();
+    if (!ItemManager) return;
+
+    // 1) 카메라 전방으로 짧게 트레이스해서 앞의 아이템을 "줍기" 시도
+    if (APlayerController* PC = Cast<APlayerController>(GetController()))
+    {
+        FVector CamLoc; FRotator CamRot;
+        PC->GetPlayerViewPoint(CamLoc, CamRot);
+
+        const float TraceDist = 800.f;
+        const FVector Start = CamLoc;
+        const FVector End   = Start + CamRot.Vector() * TraceDist;
+
+        FHitResult Hit;
+        FCollisionObjectQueryParams Obj;
+        Obj.AddObjectTypesToQuery(ECC_WorldDynamic);
+        Obj.AddObjectTypesToQuery(ECC_PhysicsBody);
+        // 커스텀 채널 쓰면 추가: Obj.AddObjectTypesToQuery(ECC_GameTraceChannel1);
+    	UE_LOG(LogTemp, Log, TEXT("[Hero] Step 2 - CollisionObjectQueryParams passed"));
+        FCollisionQueryParams Params(SCENE_QUERY_STAT(EquipSlot1Trace), false, this);
+
+        const bool bHit = GetWorld()->LineTraceSingleByObjectType(Hit, Start, End, Obj, Params);
+
+#if !(UE_BUILD_SHIPPING)
+        // 디버그 보고 싶으면 주석 해제
+        // DrawDebugLine(GetWorld(), Start, End, FColor::Cyan, false, 1.f, 0, 0.5f);
+        // if (bHit) DrawDebugSphere(GetWorld(), Hit.ImpactPoint, 8.f, 12, FColor::Yellow, false, 1.f);
+#endif
+
+        if (bHit)
+        {
+        	UE_LOG(LogTemp, Log, TEXT("[Hero] Step 3 - bHit passed"));
+            if (AActor* HitActor = Hit.GetActor())
+            {
+        		UE_LOG(LogTemp, Log, TEXT("[Hero] Step 4 - HitActor"));
+                // (선택) 인터랙터블이면 그쪽 로직 먼저 태움
+                if (HitActor->GetClass()->ImplementsInterface(UGtInteractable::StaticClass()))
+                {
+    				UE_LOG(LogTemp, Log, TEXT("[Hero] Step 5 - HitActor->GetClass"));
+                    IGtInteractable::Execute_Interact(HitActor, this);
+                }
+                else
+                {
+    				UE_LOG(LogTemp, Log, TEXT("[Hero] Step 5-1 - move inventory"));
+                    // 최소 구현: 월드 아이템 액터를 인벤토리로 옮김(숨김/충돌 OFF)
+                    ItemManager->PickupFromActor(HitActor);
+                }
+            }
+        }
+    }
+
+    // 2) 인벤토리에서 무기 하나 골라 장착 (가장 최근 획득 우선)
+    AGtWeaponItem* WeaponToEquip = nullptr;
+    for (int32 i = ItemManager->Inventory.Num() - 1; i >= 0; --i)
+    {
+        if (AGtWeaponItem* W = Cast<AGtWeaponItem>(ItemManager->Inventory[i]))
+        {
+            WeaponToEquip = W;
+            break;
+        }
+    }
+    if (!WeaponToEquip) return;
+
+    // 3) 손 소켓으로 부착 (소켓 이름은 프로젝트에 맞게)
+    USkeletalMeshComponent* Skel = GetMesh();
+    if (!Skel) return;
+
+    FName SocketName(TEXT("hand_r_socket")); // 없으면 "WeaponSocket"로 백업
+    if (!Skel->DoesSocketExist(SocketName))
+        SocketName = FName("WeaponSocket");
+
+    WeaponToEquip->SetActorHiddenInGame(false);
+    WeaponToEquip->SetActorEnableCollision(false);
+    WeaponToEquip->AttachToComponent(
+        Skel,
+        FAttachmentTransformRules::SnapToTargetIncludingScale,
+        SocketName
+    );
+
+    bIsEquipped = true;
+    // 필요하면 애니/상태 갱신 이벤트 호출
+    // OnEquipmentChanged(WeaponToEquip);
+	if (LoadoutComponent)
+	{
+		LoadoutComponent->ChangeActiveWeaponSlot(GtGameplayTags::Loadout_Slot_Weapon_Primary);
+	}
+	
+	if (InteractionComp) InteractionComp->TryInteract();
 }
 
 void AGtHeroCharacter::Input_PrimaryActionPressed(const FInputActionValue& InputActionValue)
@@ -512,7 +618,7 @@ void AGtHeroCharacter::OnCharacterStatusTagChanged(const FGameplayTag& StatusTag
 	}
 }
 
-void AGtHeroCharacter::OnEquipmentChanged(AGtTestWeaponBase* NewWeapon)
+void AGtHeroCharacter::OnEquipmentChanged(AGtWeaponItem* NewWeapon)
 {
 	// NewWeapon이 nullptr이면 무기 해제/유효한 포인터이면 무기 장착 상태
 	bIsEquipped = (NewWeapon != nullptr);

@@ -19,7 +19,10 @@
 #include "Misc/PackageName.h"
 #include "UObject/UnrealType.h"      // FIntProperty, FFloatProperty, FStrProperty, FStructProperty
 #include "GameplayTagContainer.h"    // FGameplayTag
-#include "DrawDebugHelpers.h" 
+#include "DrawDebugHelpers.h"
+#include "GameFramework/PlayerController.h"
+#include "Components/MeshComponent.h"
+#include "Kismet/GameplayStatics.h"
 
 static const FName LogCat(TEXT("Gigantes.ItemData"));
 
@@ -224,7 +227,7 @@ void UGigantesItemDataSubsystem::OnPreloadCompleted()
 
 		if (HardClass)
 		{
-			TagToClassHard.Add(KVP.Key, HardClass); // ✅ 여기서 채움
+			TagToClassHard.Add(KVP.Key, HardClass);
 		}
 	}
 
@@ -320,240 +323,390 @@ int32 UGigantesItemDataSubsystem::LoadOneJson(const FString& AbsFilePath, TMap<F
 	return Added;
 }
 
+static const TCHAR* GtWorldTypeToText(EWorldType::Type T) {
+    switch (T) {
+    case EWorldType::Game: return TEXT("Game");
+    case EWorldType::PIE: return TEXT("PIE");
+    case EWorldType::Editor: return TEXT("Editor");
+    case EWorldType::EditorPreview: return TEXT("EditorPreview");
+    default: return TEXT("Other");
+    }
+}
+
 void UGigantesItemDataSubsystem::Test_SpawnItem(const TArray<FString>& Args, UWorld* World)
 {
-	if (!World)
-    {
-        UE_LOG(LogTemp, Error, TEXT("[gt.TestSpawnItem] No world"));
-        return;
-    }
-    if (Args.Num() < 1)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("Usage: gt.TestSpawnItem <ItemId>"));
-        return;
-    }
-
+    if (!World) { UE_LOG(LogTemp, Error, TEXT("[gt.TestSpawnItem] No world")); return; }
+    if (Args.Num() < 1) { UE_LOG(LogTemp, Warning, TEXT("Usage: gt.TestSpawnItem <ItemId>")); return; }
     const FString ItemId = Args[0];
 
-    if (!IsPreloadFinished())
-    {
+    if (!IsPreloadFinished()) {
         UE_LOG(LogTemp, Warning, TEXT("[gt.TestSpawnItem] Preload not finished yet"));
         return;
     }
 
+    // 1) 월드 진단
+    UE_LOG(LogTemp, Log, TEXT("[gt.TestSpawnItem] World=%s Type=%s NetMode=%d"),
+        *GetNameSafe(World), GtWorldTypeToText(World->WorldType), (int32)World->GetNetMode());
+
+    if (!(World->WorldType == EWorldType::PIE || World->WorldType == EWorldType::Game)) {
+        UE_LOG(LogTemp, Warning, TEXT("[gt.TestSpawnItem] Not a Game/PIE world. Run during Play."));
+    }
+
+    // 2) 데이터/클래스 확보
     const FGtItemData* D = FindItemDataById(ItemId);
-    if (!D)
-    {
-        UE_LOG(LogTemp, Error, TEXT("[gt.TestSpawnItem] No ItemData for %s"), *ItemId);
-        return;
+    if (!D) { UE_LOG(LogTemp, Error, TEXT("[gt.TestSpawnItem] No ItemData for %s"), *ItemId); return; }
+
+    UClass* Cls = nullptr;
+
+    // (1순위) JSON에 SoftClass가 있다면 사용
+#if 1
+    // FGtItemData에 필드가 'ItemClass' (TSoftClassPtr<AGtItemBase>) 라고 가정
+    if (D->ItemClass.ToSoftObjectPath().IsValid()) {
+        Cls = D->ItemClass.LoadSynchronous();
     }
-
-    UClass* Cls = GetHardClassByTag(D->ItemTag);
-    if (!IsValid(Cls))
-    {
-        // (예외) JSON에 직접 들어있는 클래스가 이미 로드되어 있으면 사용
-        Cls = D->ItemClass.Get();
-    }
-    if (!IsValid(Cls))
-    {
-        UE_LOG(LogTemp, Error, TEXT("[gt.TestSpawnItem] No class for Tag=%s (ItemId=%s)"),
-            *D->ItemTag.ToString(), *ItemId);
-        return;
-    }
-
-    // 스폰
-    FTransform SpawnXf; // 원점
-    FActorSpawnParameters Params;
-    Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-    AActor* A = World->SpawnActor<AActor>(Cls, SpawnXf, Params);
-    if (!A)
-    {
-        UE_LOG(LogTemp, Error, TEXT("[gt.TestSpawnItem] Spawn failed for %s"), *ItemId);
-        return;
-    }
-
-    UE_LOG(LogTemp, Log, TEXT("[gt.TestSpawnItem] Spawned %s as %s"), *ItemId, *A->GetName());
-
-    // ─────────────────────────────────────────────────────────────────────
-    // ① 화면/월드에 즉시 값 뿌리기 (초간단 시각 확인)
-    if (GEngine)
-    {
-        GEngine->AddOnScreenDebugMessage(
-            -1, 3.f, FColor::Green,
-            FString::Printf(TEXT("%s | Dmg=%d Ammo=%d Heal=%d FR=%.2f RT=%.2f"),
-                *D->ItemName, D->Damage, D->MaxAmmo, D->HealAmount, D->FireRate, D->ReloadTime));
-    }
-    DrawDebugString(
-        World,
-        A->GetActorLocation() + FVector(0,0,120.f),
-        FString::Printf(TEXT("%s\nDmg=%d Ammo=%d Heal=%d\nFR=%.2f RT=%.2f"),
-            *D->ItemName, D->Damage, D->MaxAmmo, D->HealAmount, D->FireRate, D->ReloadTime),
-        A, FColor::Yellow, 5.f, true
-    );
-
-#if !UE_BUILD_SHIPPING
-    // ─────────────────────────────────────────────────────────────────────
-    // ② 액터에 같은 이름의 UPROPERTY가 있으면 값 꽂기 (없으면 자동 스킵)
-    auto TrySetInt = [&](const TCHAR* PropName, int32 Value)
-    {
-        if (FIntProperty* P = FindFProperty<FIntProperty>(A->GetClass(), PropName))
-            P->SetPropertyValue_InContainer(A, Value);
-    };
-    auto TrySetFloat = [&](const TCHAR* PropName, float Value)
-    {
-        if (FFloatProperty* P = FindFProperty<FFloatProperty>(A->GetClass(), PropName))
-            P->SetPropertyValue_InContainer(A, Value);
-    };
-    auto TrySetString = [&](const TCHAR* PropName, const FString& Value)
-    {
-        if (FStrProperty* P = FindFProperty<FStrProperty>(A->GetClass(), PropName))
-            P->SetPropertyValue_InContainer(A, Value);
-    };
-    auto TrySetTag = [&](const TCHAR* PropName, const FGameplayTag& Value)
-    {
-        if (FStructProperty* P = FindFProperty<FStructProperty>(A->GetClass(), PropName))
-        {
-            if (P->Struct == TBaseStructure<FGameplayTag>::Get())
-            {
-                if (FGameplayTag* Ptr = P->ContainerPtrToValuePtr<FGameplayTag>(A))
-                    *Ptr = Value;
-            }
-        }
-    };
-
-    // 필요하면 아래 목록 중 필요한 것만 남겨도 됨
-    TrySetString(TEXT("ItemId"),          D->ItemId);
-    TrySetString(TEXT("ItemName"),        D->ItemName);
-    TrySetString(TEXT("ItemType"),        D->ItemType);
-    TrySetString(TEXT("SubType"),         D->SubType);
-    TrySetString(TEXT("Description"),     D->Description);
-
-    TrySetInt   (TEXT("Damage"),          D->Damage);
-    TrySetInt   (TEXT("MaxAmmo"),         D->MaxAmmo);
-    TrySetInt   (TEXT("AmmoInMagazine"),  D->AmmoInMagazine);
-
-    TrySetFloat (TEXT("FireRate"),        D->FireRate);
-    TrySetFloat (TEXT("ReloadTime"),      D->ReloadTime);
-
-    TrySetFloat (TEXT("ExplosionRadius"), D->ExplosionRadius);
-    TrySetFloat (TEXT("ExplosionDelay"),  D->ExplosionDelay);
-
-    TrySetInt   (TEXT("HealAmount"),      D->HealAmount);
-
-    TrySetTag   (TEXT("ItemTag"),         D->ItemTag);
-
-    // ─────────────────────────────────────────────────────────────────────
-    // ③ 꽂힌 값 즉석 검증(있을 때만). 같으면 Log, 다르면 Error
-    auto CheckInt = [&](const TCHAR* PropName, int32 Expected)
-    {
-        if (FIntProperty* P = FindFProperty<FIntProperty>(A->GetClass(), PropName))
-        {
-            const int32 Actual = P->GetPropertyValue_InContainer(A);
-            if (Actual == Expected)
-            {
-                UE_LOG(LogTemp, Log, TEXT("  %-16s %d == %d"), PropName, Actual, Expected);
-            }
-            else
-            {
-                UE_LOG(LogTemp, Error, TEXT("  %-16s %d != %d"), PropName, Actual, Expected);
-            }
-        }
-    };
-    auto CheckFloat = [&](const TCHAR* PropName, float Expected, float Tol=0.001f)
-    {
-        if (FFloatProperty* P = FindFProperty<FFloatProperty>(A->GetClass(), PropName))
-        {
-            const float Actual = P->GetPropertyValue_InContainer(A);
-            if (FMath::IsNearlyEqual(Actual, Expected, Tol))
-            {
-                UE_LOG(LogTemp, Log, TEXT("  %-16s %.3f ~= %.3f"), PropName, Actual, Expected);
-            }
-            else
-            {
-                UE_LOG(LogTemp, Error, TEXT("  %-16s %.3f != %.3f"), PropName, Actual, Expected);
-            }
-        }
-    };
-	auto CheckString = [&](const TCHAR* PropName, const FString& Expected)
-	{
-		if (FStrProperty* P = FindFProperty<FStrProperty>(A->GetClass(), PropName))
-		{
-			const FString Actual = P->GetPropertyValue_InContainer(A);
-			if (Actual == Expected)
-			{
-				UE_LOG(LogTemp, Log, TEXT("  %-16s \"%s\" == \"%s\""), PropName, *Actual, *Expected);
-				
-			}
-			else
-			{
-				UE_LOG(LogTemp, Error, TEXT("  %-16s \"%s\" != \"%s\""), PropName, *Actual, *Expected);
-				
-			}
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("  %-16s <no property on %s> (JSON=\"%s\")"),
-				PropName, *A->GetClass()->GetName(), *Expected);
-		}
-	};
-	auto CheckTag = [&](const TCHAR* PropName, const FGameplayTag& Expected)
-	{
-		if (FStructProperty* P = FindFProperty<FStructProperty>(A->GetClass(), PropName))
-		{
-			if (P->Struct == TBaseStructure<FGameplayTag>::Get())
-			{
-				const FGameplayTag* Ptr = P->ContainerPtrToValuePtr<FGameplayTag>(A);
-				const bool bOK = (Ptr && Ptr->MatchesTagExact(Expected));
-				if (bOK)
-				{
-					UE_LOG(LogTemp, Log, TEXT("  %-16s %s == %s"), PropName, Ptr ? *Ptr->ToString() : TEXT("<null>"), *Expected.ToString());
-					
-				}
-				else
-				{
-					
-					UE_LOG(LogTemp, Error, TEXT("  %-16s %s != %s"), PropName, Ptr ? *Ptr->ToString() : TEXT("<null>"), *Expected.ToString());
-				}
-			}
-			else
-			{
-				UE_LOG(LogTemp, Warning, TEXT("  %-16s exists but is not FGameplayTag on %s"), PropName, *A->GetClass()->GetName());
-			}
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("  %-16s <no property on %s> (JSON=%s)"),
-				PropName, *A->GetClass()->GetName(), *Expected.ToString());
-		}
-	};
-
-    CheckString(TEXT("ItemId"),          D->ItemId);
-    CheckString(TEXT("ItemName"),        D->ItemName);
-    CheckString(TEXT("ItemType"),        D->ItemType);
-    CheckString(TEXT("SubType"),         D->SubType);
-    CheckString(TEXT("Description"),     D->Description);
-
-    CheckInt   (TEXT("Damage"),          D->Damage);
-    CheckInt   (TEXT("MaxAmmo"),         D->MaxAmmo);
-    CheckInt   (TEXT("AmmoInMagazine"),  D->AmmoInMagazine);
-
-    CheckFloat (TEXT("FireRate"),        D->FireRate);
-    CheckFloat (TEXT("ReloadTime"),      D->ReloadTime);
-
-    CheckFloat (TEXT("ExplosionRadius"), D->ExplosionRadius);
-    CheckFloat (TEXT("ExplosionDelay"),  D->ExplosionDelay);
-
-    CheckInt   (TEXT("HealAmount"),      D->HealAmount);
-
-    CheckTag   (TEXT("ItemTag"),         D->ItemTag);
 #endif
-	UE_LOG(LogTemp, Log, TEXT("  JSON.ItemId       = %s"), *D->ItemId);
-	UE_LOG(LogTemp, Log, TEXT("  JSON.ItemName     = %s"), *D->ItemName);
-	UE_LOG(LogTemp, Log, TEXT("  JSON.ItemType     = %s"), *D->ItemType);
-	UE_LOG(LogTemp, Log, TEXT("  JSON.SubType      = %s"), *D->SubType);
-	UE_LOG(LogTemp, Log, TEXT("  JSON.Description  = %s"), *D->Description);
-	UE_LOG(LogTemp, Log, TEXT("  JSON.ItemTag      = %s"), *D->ItemTag.ToString());
+
+    // (2순위) 태그→클래스 매핑
+    if (!IsValid(Cls)) {
+        Cls = GetHardClassByTag(D->ItemTag);
+    }
+
+    if (!IsValid(Cls)) { UE_LOG(LogTemp, Error, TEXT("[gt.TestSpawnItem] Resolve class failed")); return; }
+    if (!Cls->IsChildOf(AGtItemBase::StaticClass())) {
+        UE_LOG(LogTemp, Error, TEXT("[gt.TestSpawnItem] Class %s not derived from AGtItemBase"), *GetNameSafe(Cls));
+        return;
+    }
+    if (Cls->HasAnyClassFlags(CLASS_Abstract)) {
+        UE_LOG(LogTemp, Error, TEXT("[gt.TestSpawnItem] Class %s is ABSTRACT"), *GetNameSafe(Cls));
+        return;
+    }
+
+    // 3) 스폰 위치: 카메라 앞 150cm
+    FVector Loc = FVector::ZeroVector;
+    FRotator Rot = FRotator::ZeroRotator;
+    if (APlayerController* PC = World->GetFirstPlayerController()) {
+        FVector CamLoc; FRotator CamRot;
+        PC->GetPlayerViewPoint(CamLoc, CamRot);
+        Loc = CamLoc + CamRot.Vector() * 150.f;
+        Rot = CamRot;
+    }
+    const FTransform Xform(Rot, Loc);
+    UE_LOG(LogTemp, Log, TEXT("[gt.TestSpawnItem] Spawn at %s Rot=%s Class=%s"),
+        *Loc.ToString(), *Rot.Euler().ToString(), *GetNameSafe(Cls));
+
+    // 4) 충돌 무시 + Defer 스폰
+    FActorSpawnParameters Params;
+    Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+    Params.Name = MakeUniqueObjectName(World, Cls, FName(*FString::Printf(TEXT("GT_%s"), *ItemId)));
+
+    AGtItemBase* Spawned = World->SpawnActorDeferred<AGtItemBase>(Cls, Xform, nullptr, nullptr,
+        ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+
+    if (!Spawned) {
+        UE_LOG(LogTemp, Error, TEXT("[gt.TestSpawnItem] SpawnActorDeferred returned NULL"));
+        return;
+    }
+
+    // 5) 데이터 적용
+    Spawned->InitFromData(*D);
+
+    // 6) 마무리 + 검증
+    UGameplayStatics::FinishSpawningActor(Spawned, Xform);
+	
+	const bool bValid          = IsValid(Spawned);
+	const bool bBeingDestroyed = Spawned->IsActorBeingDestroyed();
+	const bool bDestroyFlags   = Spawned->HasAnyFlags(RF_BeginDestroyed | RF_FinishDestroyed);
+
+	UE_LOG(LogTemp, Log, TEXT("[gt.TestSpawnItem] SPAWN OK Actor=%s Valid=%d BeingDestroyed=%d DestroyFlags=%d Level=%s World=%s"),
+		*GetNameSafe(Spawned),
+		bValid ? 1 : 0,
+		bBeingDestroyed ? 1 : 0,
+		bDestroyFlags ? 1 : 0,
+		*GetNameSafe(Spawned->GetLevel()),
+		*GetNameSafe(Spawned->GetWorld()));
+
+    // 7) 시각 확인
+    DrawDebugSphere(World, Loc, 20.f, 16, FColor::Green, false, 5.f, 0, 1.5f);
 }
+
+// void UGigantesItemDataSubsystem::Test_SpawnItem(const TArray<FString>& Args, UWorld* World)
+// {
+// 	if (!World)
+//     {
+//         UE_LOG(LogTemp, Error, TEXT("[gt.TestSpawnItem] No world"));
+//         return;
+//     }
+//     if (Args.Num() < 1)
+//     {
+//         UE_LOG(LogTemp, Warning, TEXT("Usage: gt.TestSpawnItem <ItemId>"));
+//         return;
+//     }
+//
+//     const FString ItemId = Args[0];
+//
+//     if (!IsPreloadFinished())
+//     {
+//         UE_LOG(LogTemp, Warning, TEXT("[gt.TestSpawnItem] Preload not finished yet"));
+//         return;
+//     }
+//
+//     const FGtItemData* D = FindItemDataById(ItemId);
+//     if (!D)
+//     {
+//         UE_LOG(LogTemp, Error, TEXT("[gt.TestSpawnItem] No ItemData for %s"), *ItemId);
+//         return;
+//     }
+//
+//     UClass* Cls = GetHardClassByTag(D->ItemTag);
+//     if (!IsValid(Cls))
+//     {
+//         // (예외) JSON에 직접 들어있는 클래스가 이미 로드되어 있으면 사용
+//         Cls = D->ItemClass.Get();
+//     }
+//     if (!IsValid(Cls))
+//     {
+//         UE_LOG(LogTemp, Error, TEXT("[gt.TestSpawnItem] No class for Tag=%s (ItemId=%s)"),
+//             *D->ItemTag.ToString(), *ItemId);
+//         return;
+//     }
+//
+//     // 스폰
+// 	APlayerController* PC = World->GetFirstPlayerController();
+// 	FVector CamLoc = FVector::ZeroVector;
+// 	FRotator CamRot = FRotator::ZeroRotator;
+// 	if (PC) { PC->GetPlayerViewPoint(CamLoc, CamRot); }
+//
+// 	FVector SpawnLoc = CamLoc + CamRot.Vector() * 120.f; // 카메라 앞
+// 	// 바닥으로 레이캐스트해서 파묻힘/공중 방지(선택)
+// 	{
+// 		FHitResult Hit;
+// 		const FVector Start = SpawnLoc + FVector(0,0,50);
+// 		const FVector End   = SpawnLoc - FVector(0,0,10000);
+// 		FCollisionQueryParams Q(TEXT("gt.TestSpawnItemTrace"), false);
+// 		if (World->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Q) && Hit.bBlockingHit)
+// 		{
+// 			SpawnLoc = Hit.Location + FVector(0,0,2); // 살짝 띄우기
+// 			CamRot.Pitch = 0.f; // 월드 놓기라면 눈높이 각도 제거(선택)
+// 		}
+// 	}
+//
+// 	const FTransform SpawnTM(CamRot, SpawnLoc);
+//
+// 	// 항상 스폰 + 소유자/인스티게이터 지정
+// 	FActorSpawnParameters Params;
+// 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+// 	Params.Owner      = PC ? PC->GetPawn() : nullptr;
+// 	Params.Instigator = PC ? PC->GetPawn<APawn>() : nullptr;
+//
+// 	AActor* A = World->SpawnActor<AActor>(Cls, SpawnTM, Params);
+// 	if (!A)
+// 	{
+// 		UE_LOG(LogTemp, Error, TEXT("[gt.TestSpawnItem] Spawn failed for %s"), *ItemId);
+// 		return;
+// 	}
+//
+// 	// 가시성/충돌 강제 ON (BP 세팅이 '장착 전용'이라 숨김일 수 있어서)
+// 	A->SetActorHiddenInGame(false);
+// 	A->SetActorEnableCollision(true);
+//
+// 	TInlineComponentArray<UMeshComponent*> Meshes(A);
+// 	for (UMeshComponent* MC : Meshes)
+// 	{
+// 		if (!MC) continue;
+// 		MC->SetVisibility(true, true);
+// 		MC->SetHiddenInGame(false);
+// 		MC->SetRenderInMainPass(true);
+// 		MC->SetOwnerNoSee(false);
+// 		MC->SetOnlyOwnerSee(false);
+// 		MC->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+// 	}
+//
+// 	// 디버그 표시
+// 	UE_LOG(LogTemp, Log, TEXT("[gt.TestSpawnItem] Spawned %s as %s @ %s"),
+// 		*ItemId, *A->GetName(), *A->GetActorLocation().ToString());
+//
+// 	DrawDebugSphere(World, A->GetActorLocation(), 8.f, 12, FColor::Green, false, 3.f, 0, 1.f);
+//
+//     // ─────────────────────────────────────────────────────────────────────
+//     // ① 화면/월드에 즉시 값 뿌리기 (초간단 시각 확인)
+//     if (GEngine)
+//     {
+//         GEngine->AddOnScreenDebugMessage(
+//             -1, 3.f, FColor::Green,
+//             FString::Printf(TEXT("%s | Dmg=%d Ammo=%d Heal=%d FR=%.2f RT=%.2f"),
+//                 *D->ItemName, D->Damage, D->MaxAmmo, D->HealAmount, D->FireRate, D->ReloadTime));
+//     }
+//     DrawDebugString(
+//         World,
+//         A->GetActorLocation() + FVector(0,0,120.f),
+//         FString::Printf(TEXT("%s\nDmg=%d Ammo=%d Heal=%d\nFR=%.2f RT=%.2f"),
+//             *D->ItemName, D->Damage, D->MaxAmmo, D->HealAmount, D->FireRate, D->ReloadTime),
+//         A, FColor::Yellow, 5.f, true
+//     );
+//
+// #if !UE_BUILD_SHIPPING
+//     // ─────────────────────────────────────────────────────────────────────
+//     // ② 액터에 같은 이름의 UPROPERTY가 있으면 값 꽂기 (없으면 자동 스킵)
+//     auto TrySetInt = [&](const TCHAR* PropName, int32 Value)
+//     {
+//         if (FIntProperty* P = FindFProperty<FIntProperty>(A->GetClass(), PropName))
+//             P->SetPropertyValue_InContainer(A, Value);
+//     };
+//     auto TrySetFloat = [&](const TCHAR* PropName, float Value)
+//     {
+//         if (FFloatProperty* P = FindFProperty<FFloatProperty>(A->GetClass(), PropName))
+//             P->SetPropertyValue_InContainer(A, Value);
+//     };
+//     auto TrySetString = [&](const TCHAR* PropName, const FString& Value)
+//     {
+//         if (FStrProperty* P = FindFProperty<FStrProperty>(A->GetClass(), PropName))
+//             P->SetPropertyValue_InContainer(A, Value);
+//     };
+//     auto TrySetTag = [&](const TCHAR* PropName, const FGameplayTag& Value)
+//     {
+//         if (FStructProperty* P = FindFProperty<FStructProperty>(A->GetClass(), PropName))
+//         {
+//             if (P->Struct == TBaseStructure<FGameplayTag>::Get())
+//             {
+//                 if (FGameplayTag* Ptr = P->ContainerPtrToValuePtr<FGameplayTag>(A))
+//                     *Ptr = Value;
+//             }
+//         }
+//     };
+//
+//     // 필요하면 아래 목록 중 필요한 것만 남겨도 됨
+//     TrySetString(TEXT("ItemId"),          D->ItemId);
+//     TrySetString(TEXT("ItemName"),        D->ItemName);
+//     TrySetString(TEXT("ItemType"),        D->ItemType);
+//     TrySetString(TEXT("SubType"),         D->SubType);
+//     TrySetString(TEXT("Description"),     D->Description);
+//
+//     TrySetInt   (TEXT("Damage"),          D->Damage);
+//     TrySetInt   (TEXT("MaxAmmo"),         D->MaxAmmo);
+//     TrySetInt   (TEXT("AmmoInMagazine"),  D->AmmoInMagazine);
+//
+//     TrySetFloat (TEXT("FireRate"),        D->FireRate);
+//     TrySetFloat (TEXT("ReloadTime"),      D->ReloadTime);
+//
+//     TrySetFloat (TEXT("ExplosionRadius"), D->ExplosionRadius);
+//     TrySetFloat (TEXT("ExplosionDelay"),  D->ExplosionDelay);
+//
+//     TrySetInt   (TEXT("HealAmount"),      D->HealAmount);
+//
+//     TrySetTag   (TEXT("ItemTag"),         D->ItemTag);
+//
+//     // ─────────────────────────────────────────────────────────────────────
+//     // ③ 꽂힌 값 즉석 검증(있을 때만). 같으면 Log, 다르면 Error
+//     auto CheckInt = [&](const TCHAR* PropName, int32 Expected)
+//     {
+//         if (FIntProperty* P = FindFProperty<FIntProperty>(A->GetClass(), PropName))
+//         {
+//             const int32 Actual = P->GetPropertyValue_InContainer(A);
+//             if (Actual == Expected)
+//             {
+//                 UE_LOG(LogTemp, Log, TEXT("  %-16s %d == %d"), PropName, Actual, Expected);
+//             }
+//             else
+//             {
+//                 UE_LOG(LogTemp, Error, TEXT("  %-16s %d != %d"), PropName, Actual, Expected);
+//             }
+//         }
+//     };
+//     auto CheckFloat = [&](const TCHAR* PropName, float Expected, float Tol=0.001f)
+//     {
+//         if (FFloatProperty* P = FindFProperty<FFloatProperty>(A->GetClass(), PropName))
+//         {
+//             const float Actual = P->GetPropertyValue_InContainer(A);
+//             if (FMath::IsNearlyEqual(Actual, Expected, Tol))
+//             {
+//                 UE_LOG(LogTemp, Log, TEXT("  %-16s %.3f ~= %.3f"), PropName, Actual, Expected);
+//             }
+//             else
+//             {
+//                 UE_LOG(LogTemp, Error, TEXT("  %-16s %.3f != %.3f"), PropName, Actual, Expected);
+//             }
+//         }
+//     };
+// 	auto CheckString = [&](const TCHAR* PropName, const FString& Expected)
+// 	{
+// 		if (FStrProperty* P = FindFProperty<FStrProperty>(A->GetClass(), PropName))
+// 		{
+// 			const FString Actual = P->GetPropertyValue_InContainer(A);
+// 			if (Actual == Expected)
+// 			{
+// 				UE_LOG(LogTemp, Log, TEXT("  %-16s \"%s\" == \"%s\""), PropName, *Actual, *Expected);
+// 				
+// 			}
+// 			else
+// 			{
+// 				UE_LOG(LogTemp, Error, TEXT("  %-16s \"%s\" != \"%s\""), PropName, *Actual, *Expected);
+// 				
+// 			}
+// 		}
+// 		else
+// 		{
+// 			UE_LOG(LogTemp, Warning, TEXT("  %-16s <no property on %s> (JSON=\"%s\")"),
+// 				PropName, *A->GetClass()->GetName(), *Expected);
+// 		}
+// 	};
+// 	auto CheckTag = [&](const TCHAR* PropName, const FGameplayTag& Expected)
+// 	{
+// 		if (FStructProperty* P = FindFProperty<FStructProperty>(A->GetClass(), PropName))
+// 		{
+// 			if (P->Struct == TBaseStructure<FGameplayTag>::Get())
+// 			{
+// 				const FGameplayTag* Ptr = P->ContainerPtrToValuePtr<FGameplayTag>(A);
+// 				const bool bOK = (Ptr && Ptr->MatchesTagExact(Expected));
+// 				if (bOK)
+// 				{
+// 					UE_LOG(LogTemp, Log, TEXT("  %-16s %s == %s"), PropName, Ptr ? *Ptr->ToString() : TEXT("<null>"), *Expected.ToString());
+// 					
+// 				}
+// 				else
+// 				{
+// 					
+// 					UE_LOG(LogTemp, Error, TEXT("  %-16s %s != %s"), PropName, Ptr ? *Ptr->ToString() : TEXT("<null>"), *Expected.ToString());
+// 				}
+// 			}
+// 			else
+// 			{
+// 				UE_LOG(LogTemp, Warning, TEXT("  %-16s exists but is not FGameplayTag on %s"), PropName, *A->GetClass()->GetName());
+// 			}
+// 		}
+// 		else
+// 		{
+// 			UE_LOG(LogTemp, Warning, TEXT("  %-16s <no property on %s> (JSON=%s)"),
+// 				PropName, *A->GetClass()->GetName(), *Expected.ToString());
+// 		}
+// 	};
+//
+//     CheckString(TEXT("ItemId"),          D->ItemId);
+//     CheckString(TEXT("ItemName"),        D->ItemName);
+//     CheckString(TEXT("ItemType"),        D->ItemType);
+//     CheckString(TEXT("SubType"),         D->SubType);
+//     CheckString(TEXT("Description"),     D->Description);
+//
+//     CheckInt   (TEXT("Damage"),          D->Damage);
+//     CheckInt   (TEXT("MaxAmmo"),         D->MaxAmmo);
+//     CheckInt   (TEXT("AmmoInMagazine"),  D->AmmoInMagazine);
+//
+//     CheckFloat (TEXT("FireRate"),        D->FireRate);
+//     CheckFloat (TEXT("ReloadTime"),      D->ReloadTime);
+//
+//     CheckFloat (TEXT("ExplosionRadius"), D->ExplosionRadius);
+//     CheckFloat (TEXT("ExplosionDelay"),  D->ExplosionDelay);
+//
+//     CheckInt   (TEXT("HealAmount"),      D->HealAmount);
+//
+//     CheckTag   (TEXT("ItemTag"),         D->ItemTag);
+// #endif
+// 	UE_LOG(LogTemp, Log, TEXT("  JSON.ItemId       = %s"), *D->ItemId);
+// 	UE_LOG(LogTemp, Log, TEXT("  JSON.ItemName     = %s"), *D->ItemName);
+// 	UE_LOG(LogTemp, Log, TEXT("  JSON.ItemType     = %s"), *D->ItemType);
+// 	UE_LOG(LogTemp, Log, TEXT("  JSON.SubType      = %s"), *D->SubType);
+// 	UE_LOG(LogTemp, Log, TEXT("  JSON.Description  = %s"), *D->Description);
+// 	UE_LOG(LogTemp, Log, TEXT("  JSON.ItemTag      = %s"), *D->ItemTag.ToString());
+// }
 
 const FGtItemData* UGigantesItemDataSubsystem::FindItemDataById(const FString& Id) const
 {

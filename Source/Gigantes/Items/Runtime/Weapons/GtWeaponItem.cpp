@@ -4,6 +4,7 @@
 #include "NiagaraFunctionLibrary.h"
 #include "Kismet/GameplayStatics.h"
 #include "DrawDebugHelpers.h"
+#include "GameFramework/Character.h"
 
 
 // Sets default values
@@ -22,6 +23,62 @@ AGtWeaponItem::AGtWeaponItem()
 	MuzzleFlashComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("MuzzleFlashComponent"));
 	MuzzleFlashComponent->SetupAttachment(WeaponMesh);
 	MuzzleFlashComponent->bAutoActivate = false;
+}
+
+void AGtWeaponItem::OnEquipped_Implementation(AActor* NewOwner)
+{
+	if (!IsValid(NewOwner)) return;
+
+	// 소유/가해자 설정
+	SetOwner(NewOwner);
+	if (APawn* AsPawn = Cast<APawn>(NewOwner))
+	{
+		SetInstigator(AsPawn);
+	}
+
+	// 장착할 스켈레탈 메쉬 찾기
+	USkeletalMeshComponent* MeshToAttach = nullptr;
+
+	if (ACharacter* AsChar = Cast<ACharacter>(NewOwner))
+	{
+		MeshToAttach = AsChar->GetMesh();           // 1) 캐릭터면 GetMesh 우선
+	}
+	if (!MeshToAttach)
+	{
+		MeshToAttach = NewOwner->FindComponentByClass<USkeletalMeshComponent>(); // 2) 일반 액터의 임의 스켈레탈
+	}
+
+	if (MeshToAttach)
+	{
+		AttachToComponent(
+			MeshToAttach,
+			FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+			AttachSocketName /* 예: "RightHandSocket" */);
+	}
+	else
+	{
+		// 3) 마지막 폴백: 액터에 붙이기(소켓 개념 없음)
+		AttachToActor(NewOwner, FAttachmentTransformRules::KeepWorldTransform);
+	}
+
+	SetActorHiddenInGame(false);
+	SetActorEnableCollision(false);
+}
+
+void AGtWeaponItem::OnUnequipped_Implementation()
+{
+	DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+	SetActorHiddenInGame(true);
+}
+
+void AGtWeaponItem::ExecutePrimaryActionPressed_Implementation()
+{
+	Fire(); // ← 기존 무기 발사 로직 호출
+}
+
+void AGtWeaponItem::ExecuteReloadAction_Implementation()
+{
+	Reload(); // ← 기존 재장전 로직 호출
 }
 
 void AGtWeaponItem::InitFromData(const FGtItemData& InData)

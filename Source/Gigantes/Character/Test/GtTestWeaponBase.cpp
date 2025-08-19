@@ -1,6 +1,5 @@
 #include "GtTestWeaponBase.h"
 
-#include "TestGtGameplayTags.h"
 #include "Components/SphereComponent.h"
 #include "Curves/CurveVector.h"
 #include "Engine/SkeletalMeshSocket.h"

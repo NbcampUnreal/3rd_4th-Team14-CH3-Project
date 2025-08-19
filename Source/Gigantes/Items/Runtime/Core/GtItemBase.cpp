@@ -8,9 +8,10 @@ AGtItemBase::AGtItemBase()
 
 }
 
-void AGtItemBase::UseItem()
+bool AGtItemBase::UseItem(AActor* User)
 {
-	UE_LOG(LogTemp, Warning, TEXT("Base item used: %s"), *ItemData.ItemName);
+	UE_LOG(LogTemp, Warning, TEXT("[Base] user used: %p"), User);
+	return false;
 }
 
 const FGtItemData& AGtItemBase::GetItemData() const
@@ -21,4 +22,5 @@ const FGtItemData& AGtItemBase::GetItemData() const
 void AGtItemBase::InitFromData(const FGtItemData& InData)
 {
 	ItemData = InData;
+	ItemId   = InData.ItemId; 
 }

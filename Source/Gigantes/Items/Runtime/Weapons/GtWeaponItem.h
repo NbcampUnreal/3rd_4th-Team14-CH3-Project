@@ -3,10 +3,11 @@
 #include "CoreMinimal.h"
 #include "Gigantes/Items/Runtime/Core/GtItemBase.h"
 #include "NiagaraSystem.h"
+#include "Equipments/GtEquippable.h"
 #include "GtWeaponItem.generated.h"
 
 UCLASS()
-class GIGANTES_API AGtWeaponItem : public AGtItemBase
+class GIGANTES_API AGtWeaponItem : public AGtItemBase, public IGtEquippable
 {
 	GENERATED_BODY()
 
@@ -14,6 +15,20 @@ public:
 	// Sets default values for this actor's properties
 	AGtWeaponItem();
 
+	// IGtEquippable 구현
+	virtual void OnEquipped_Implementation(AActor* NewOwner) override;
+	virtual void OnUnequipped_Implementation() override;
+
+	virtual void ExecutePrimaryActionPressed_Implementation() override;
+	virtual void ExecutePrimaryActionReleased_Implementation() override {}
+	virtual void ExecuteSecondaryActionPressed_Implementation() override {}
+	virtual void ExecuteSecondaryActionReleased_Implementation() override {}
+	virtual void ExecuteReloadAction_Implementation() override;
+
+	// (선택) 손 소켓명, 장착 시 어태치에 사용
+	UPROPERTY(EditDefaultsOnly, Category="Weapon|Attach")
+	FName AttachSocketName = TEXT("RightHandSocket");
+	
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	virtual void Fire();
 	UFUNCTION(BlueprintCallable, Category="Weapon")
