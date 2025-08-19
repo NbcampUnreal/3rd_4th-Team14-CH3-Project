@@ -7,7 +7,8 @@
 #include "Gigantes/GtGameplayTags.h"
 #include "Gigantes/Equipments/Components/GtLoadoutComponent.h"
 #include "Gigantes/Input/GtInputComponent.h"
-#include "Gigantes/Items/Manager/GtItemManagerComponent.h"
+#include "Gigantes/Items/Systems/Manager/GtItemManagerComponent.h"
+#include "Test/GtTestWeaponBase.h"
 #include "Test/TestGtGameplayTags.h"
 
 AGtHeroCharacter::AGtHeroCharacter(const FObjectInitializer& ObjectInitializer)
@@ -50,6 +51,10 @@ void AGtHeroCharacter::BeginPlay()
 	if (LoadoutComponent)
 	{
 		LoadoutComponent->OnEquipmentWeaponChanged.AddDynamic(this, &AGtHeroCharacter::OnEquipmentChanged);
+	}
+	if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+	{
+		AnimInstance->OnMontageEnded.AddDynamic(this, &AGtHeroCharacter::OnMontageEnded);
 	}
 }
 
@@ -208,9 +213,9 @@ void AGtHeroCharacter::Input_SprintStop(const FInputActionValue& InputActionValu
 void AGtHeroCharacter::Input_PrimaryActionPressed(const FInputActionValue& InputActionValue)
 {
 	// TODO : 행동 가능 상태 체크를 어떻게 구현할지 고민
-	if (HasStatusTag(GtGameplayTags::Status_Dead))
+	if (!CanPerformAction())
 	{
-		return; 
+		return;
 	}
 	
 	if (LoadoutComponent)
@@ -235,11 +240,12 @@ void AGtHeroCharacter::Input_PrimaryActionReleased(const FInputActionValue& Inpu
 
 void AGtHeroCharacter::Input_SecondaryActionPressed(const FInputActionValue& InputActionValue)
 {
-	// TODO : 행동 가능 상태 체크를 어떻게 구현할지 고민
-	if (HasStatusTag(GtGameplayTags::Status_Dead))
+	if (!CanPerformAction())
 	{
 		return; 
 	}
+	
+	bAimInputHeld = true;
 	
 	if (LoadoutComponent)
 	{
@@ -249,11 +255,12 @@ void AGtHeroCharacter::Input_SecondaryActionPressed(const FInputActionValue& Inp
 
 void AGtHeroCharacter::Input_SecondaryActionReleased(const FInputActionValue& InputActionValue)
 {
-	// TODO : 행동 가능 상태 체크를 어떻게 구현할지 고민
 	if (HasStatusTag(GtGameplayTags::Status_Dead))
 	{
 		return; 
 	}
+
+	bAimInputHeld = false;
 	
 	if (LoadoutComponent)
 	{
@@ -264,7 +271,7 @@ void AGtHeroCharacter::Input_SecondaryActionReleased(const FInputActionValue& In
 void AGtHeroCharacter::Input_Reload(const FInputActionValue& InputActionValue)
 {
 	// TODO : 행동 가능 상태 체크를 어떻게 구현할지 고민
-	if (HasStatusTag(GtGameplayTags::Status_Dead))
+	if (!CanPerformAction())
 	{
 		return; 
 	}
@@ -420,6 +427,12 @@ void AGtHeroCharacter::StartSlide()
 	HeroMovementComponent->StartSlide();
 }
 
+bool AGtHeroCharacter::CanPerformAction() const
+{
+	return !HasStatusTag(GtGameplayTags::Status_Dead) && 
+		   !HasStatusTag(GtGameplayTags::Status_Action_Reloading);
+}
+
 void AGtHeroCharacter::HandleCapsuleSizeChanged(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
 {
 	// 메쉬 위치 조정
@@ -512,7 +525,7 @@ void AGtHeroCharacter::OnCharacterStatusTagChanged(const FGameplayTag& StatusTag
 	}
 }
 
-void AGtHeroCharacter::OnEquipmentChanged(AGtWeaponItem* NewWeapon)
+void AGtHeroCharacter::OnEquipmentChanged(AGtTestWeaponBase* NewWeapon)
 {
 	// NewWeapon이 nullptr이면 무기 해제/유효한 포인터이면 무기 장착 상태
 	bIsEquipped = (NewWeapon != nullptr);
@@ -535,6 +548,23 @@ void AGtHeroCharacter::OnEquipmentChanged(AGtWeaponItem* NewWeapon)
 	}
 }
 
+void AGtHeroCharacter::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+	AGtTestWeaponBase* CurrentWeapon = LoadoutComponent ? Cast<AGtTestWeaponBase>(LoadoutComponent->GetCurrentEquippedWeapon()) : nullptr;
+    
+	// 끝난 몽타주가 현재 무기의 재장전 몽타주가 맞는지 그리고 캐릭터가 재장전 상태인지 확인
+	// 이렇게 하면 다른 몽타주가 끝나도 재장전 상태가 해제되는 버그를 막을 수 있음
+	if (CurrentWeapon && Montage == CurrentWeapon->GetCharacterReloadMontage() && HasStatusTag(GtGameplayTags::Status_Action_Reloading))
+	{
+		// 재장전이 정상적으로 끝났든 무기 교체 등으로 중단되었든 상관없이 상태를 정리
+		RemoveStatusTag(GtGameplayTags::Status_Action_Reloading);
+		RemoveIKDisableTag(GtGameplayTags::Animation_IK_Disable_Reloading);
+		CurrentWeapon->EndReload();
+
+		TryUpdateAimingState();
+	}
+}
+
 void AGtHeroCharacter::UpdateAimOffsetState()
 {
 	const bool bShouldEnableAimOffset = HasStatusTag(GtGameplayTags::Status_Action_Aiming) || HasStatusTag(GtGameplayTags::Status_Combat_Ranged);
@@ -543,6 +573,30 @@ void AGtHeroCharacter::UpdateAimOffsetState()
 	{
 		bUseAimOffset = bShouldEnableAimOffset;
 	}
+}
+
+void AGtHeroCharacter::TryUpdateAimingState()
+{
+	if (LoadoutComponent)
+	{
+		// 플레이어가 조준을 원하고 (버튼 누름), 캐릭터가 조준 가능한 상태라면
+		if (bAimInputHeld && CanAim())
+		{
+			// 조준 시작 명령
+			LoadoutComponent->SecondaryActionPressed();
+		}
+		else
+		{
+			// 그 외 모든 경우엔 조준 중지 명령
+			LoadoutComponent->SecondaryActionReleased();
+		}
+	}
+}
+
+bool AGtHeroCharacter::CanAim() const
+{
+	return !HasStatusTag(GtGameplayTags::Status_Action_Reloading) &&
+		   !HasStatusTag(GtGameplayTags::Status_Dead);
 }
 
 void AGtHeroCharacter::AddIKDisableTag(const FGameplayTag& DisableTag)

@@ -2,9 +2,8 @@
 
 #include "GameFramework/Character.h"
 #include "Gigantes/Equipments/GtEquippable.h"
-#include "Gigantes/Items/Manager/GtItemFactory.h"
-#include "Gigantes/Items/Manager/GtItemManagerComponent.h"
-#include "Gigantes/Items/Weapons/GtWeaponItem.h"
+#include "Gigantes/Items/Systems/Factory/GtItemFactory.h"
+#include "Gigantes/Items/Runtime/Weapons/GtWeaponItem.h"
 #include "Gigantes/Character/Test/TestGtGameplayTags.h"
 #include "Gigantes/GtGameplayTags.h"
 #include "Gigantes/Character/GtHeroCharacter.h"
@@ -131,8 +130,17 @@ void UGtLoadoutComponent::ChangeActiveWeaponSlot(const FGameplayTag& NewActiveSl
 
 void UGtLoadoutComponent::DeactivateCurrentWeaponSlot()
 {
-    if (!CurrentEquippedWeapon) return;
+    if (!CurrentEquippedWeapon || !OwnerCharacter.IsValid()) return;
 
+    // 무기 해제 시 관련된 모든 액션 몽타주를 중단
+    if (UAnimInstance* AnimInstance = OwnerCharacter->GetMesh()->GetAnimInstance())
+    {
+        if (AnimInstance->IsAnyMontagePlaying())
+        {
+            AnimInstance->Montage_Stop(0.2f); // 0.2초간 부드럽게 멈춤
+        }
+    }
+    
     FGtLoadoutSlot* CurrentSlot = FindSlotByTag(ActiveWeaponSlotTag);
     if (CurrentSlot)
     {
@@ -183,14 +191,14 @@ void UGtLoadoutComponent::ActivateNewWeaponSlot(const FGameplayTag& SlotTag)
     //                 TODO : 테스트를 위한 임시 코드
     // =====================================================
     // 이 코드 부분은 ItemFactory 수정 없이 테스트하기 위함이며 나중에 제거해야 함
-    AGtWeaponItem* NewWeapon = nullptr; 
+    AGtTestWeaponBase* NewWeapon = nullptr; 
     if (TargetSlot->EquippedItemData.ItemTag == GtGameplayTags::Item_Weapon_TestRifle)
     {
         UE_LOG(LogTemp, Warning, TEXT("Bypassing ItemFactory for Test Weapon."));
         // LoadoutComponent에 설정된 TestWeaponClass를 직접 사용해 스폰
         if (TestWeaponClass)
         {
-            NewWeapon = GetWorld()->SpawnActor<AGtWeaponItem>(TestWeaponClass);
+            NewWeapon = GetWorld()->SpawnActor<AGtTestWeaponBase>(TestWeaponClass);
             if (AGtTestWeaponBase* TestWeapon = Cast<AGtTestWeaponBase>(NewWeapon))
             {
                 TestWeapon->InitializeTestWeapon();
@@ -199,8 +207,8 @@ void UGtLoadoutComponent::ActivateNewWeaponSlot(const FGameplayTag& SlotTag)
     }
     else
     {
-        // 기존 로직: 테스트 무기가 아닐 경우에만 ItemFactory를 사용합니다.
-        NewWeapon = Cast<AGtWeaponItem>(UGtItemFactory::CreateItem(TargetSlot->EquippedItemData, GetWorld()));
+        // TODO :기존 로직: 테스트 무기가 아닐 경우에만 ItemFactory를 사용합니다.
+        //NewWeapon = Cast<AGtWeaponItem>(UGtItemFactory::CreateItem(TargetSlot->EquippedItemData, GetWorld()));
     }
     // ==================================================
     //                  TODO : 테스트 코드 종료
@@ -251,29 +259,29 @@ void UGtLoadoutComponent::UseItemInSlot(const FGameplayTag& SlotTag)
         UE_LOG(LogTemp, Warning, TEXT("Cannot use weapon slot as usable item."));
         return;
     }
-    // 아이템 임시 생성 및 사용
-    AGtItemBase* TempItem = UGtItemFactory::CreateItem(TargetSlot->EquippedItemData, GetWorld());
-    if(TempItem)
-    {
-        // TODO: 향후 'IGtUsable' 같은 별도 인터페이스로 변경 고려
-        // 현재는 IGtEquippable의 PrimaryAction을 사용의 의미로 호출.
-        if(TempItem->Implements<UGtEquippable>())
-        {
-            //IGtEquippable::Execute_ExecutePrimaryAction(TempItem);
-            
-            // 사용 후 슬롯의 아이템 수량 감소
-            // TargetSlot->EquippedItemData.Quantity--;
-            //UE_LOG(LogTemp, Log, TEXT("Used item in slot %s. %d remaining."), *SlotTag.ToString(), TargetSlot->EquippedItemData.Quantity);
-
-            // 수량이 0 이하면 슬롯에서 아이템을 완전히 제거
-            // if (TargetSlot->EquippedItemData.Quantity <= 0)
-            // {
-            //     UE_LOG(LogTemp, Log, TEXT("Item depleted. Removing from slot %s."), *SlotTag.ToString());
-            //     UnequipItemFromSlot(SlotTag);
-            // }
-        }
-        // 임시 생성된 아이템은 자신의 로직에 따라 스스로 파괴해야 함
-    }
+    // TODO : 변경된 팩토리 패턴에 맞게 함수 호출 필요
+    // AGtItemBase* TempItem = UGtItemFactory::CreateItem(TargetSlot->EquippedItemData, GetWorld());
+    // if(TempItem)
+    // {
+    //     // TODO: 향후 'IGtUsable' 같은 별도 인터페이스로 변경 고려
+    //     // 현재는 IGtEquippable의 PrimaryAction을 사용의 의미로 호출.
+    //     if(TempItem->Implements<UGtEquippable>())
+    //     {
+    //         //IGtEquippable::Execute_ExecutePrimaryAction(TempItem);
+    //         
+    //         // 사용 후 슬롯의 아이템 수량 감소
+    //         // TargetSlot->EquippedItemData.Quantity--;
+    //         //UE_LOG(LogTemp, Log, TEXT("Used item in slot %s. %d remaining."), *SlotTag.ToString(), TargetSlot->EquippedItemData.Quantity);
+    //
+    //         // 수량이 0 이하면 슬롯에서 아이템을 완전히 제거
+    //         // if (TargetSlot->EquippedItemData.Quantity <= 0)
+    //         // {
+    //         //     UE_LOG(LogTemp, Log, TEXT("Item depleted. Removing from slot %s."), *SlotTag.ToString());
+    //         //     UnequipItemFromSlot(SlotTag);
+    //         // }
+    //     }
+    //     // 임시 생성된 아이템은 자신의 로직에 따라 스스로 파괴해야 함
+    // }
 }
 
 void UGtLoadoutComponent::PrimaryActionPressed()
@@ -313,6 +321,22 @@ void UGtLoadoutComponent::ReloadAction()
     if (CurrentEquippedWeapon && CurrentEquippedWeapon->Implements<UGtEquippable>())
     {
         IGtEquippable::Execute_ExecuteReloadAction(CurrentEquippedWeapon);
+    }
+}
+
+void UGtLoadoutComponent::StartSecondaryAction()
+{
+    if (CurrentEquippedWeapon && CurrentEquippedWeapon->Implements<UGtEquippable>())
+    {
+        IGtEquippable::Execute_ExecuteSecondaryActionPressed(CurrentEquippedWeapon);
+    }
+}
+
+void UGtLoadoutComponent::StopSecondaryAction()
+{
+    if (CurrentEquippedWeapon && CurrentEquippedWeapon->Implements<UGtEquippable>())
+    {
+        IGtEquippable::Execute_ExecuteSecondaryActionReleased(CurrentEquippedWeapon);
     }
 }
 

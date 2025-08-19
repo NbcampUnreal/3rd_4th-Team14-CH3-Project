@@ -36,12 +36,6 @@ void AGtTestWeaponBase::InitializeTestWeapon()
     ItemData.FireRate = 0.1f;
     ItemData.ReloadTime = 2.0f;
     
-    // AGtWeaponItem의 멤버 변수들도 설정
-    Damage = ItemData.Damage;
-    MaxAmmo = ItemData.MaxAmmo;
-    AmmoInMagazine = ItemData.AmmoInMagazine;
-    FireRate = ItemData.FireRate;
-    ReloadRate = ItemData.ReloadTime;
 
     // 테스트용 조준 설정
     bCanAim = true;
@@ -203,7 +197,51 @@ void AGtTestWeaponBase::ExecuteSecondaryActionReleased_Implementation()
 
 void AGtTestWeaponBase::ExecuteReloadAction_Implementation()
 {
-    TestReload();
+    //[추가된 코드들]
+    // 이미 재장전 중이거나, 탄약이 가득 차 있으면 무시
+    if (bIsReloading || CurrentAmmo == TestMaxAmmo)
+    {
+        return;
+    }
+
+    AGtHeroCharacter* Hero = Cast<AGtHeroCharacter>(WeaponOwner);
+    if (!Hero)
+    {
+        return;
+    }
+
+    if (bIsAiming)
+    {
+        StopAiming();
+    }
+    
+    bFireInputPressed = false; 
+    if (GetWorld())
+    {
+        GetWorld()->GetTimerManager().ClearTimer(AutoFireTimerHandle);
+        GetWorld()->GetTimerManager().ClearTimer(FireTimerHandle); 
+        bCanFire = true; // 단발 쿨다운 상태 초기화
+    }
+    
+    // 1. 재장전 상태로 진입
+    bIsReloading = true;
+    Hero->AddStatusTag(GtGameplayTags::Status_Action_Reloading);
+    Hero->AddIKDisableTag(GtGameplayTags::Animation_IK_Disable_Reloading);
+
+    // 2. 캐릭터의 재장전 몽타주 재생
+    if (CharacterReloadMontage)
+    {
+        if (UAnimInstance* AnimInstance = Hero->GetMesh()->GetAnimInstance())
+        {
+            AnimInstance->Montage_Play(CharacterReloadMontage);
+        }
+    }
+    
+    // 3. 무기의 재장전 애니메이션 재생
+    if (WeaponReloadAnimation)
+    {
+        WeaponMesh->PlayAnimation(WeaponReloadAnimation, false);
+    }
 }
 
 bool AGtTestWeaponBase::GetCameraModifierForTag_Implementation(const FGameplayTag& ActionTag,
@@ -218,6 +256,29 @@ bool AGtTestWeaponBase::GetCameraModifierForTag_Implementation(const FGameplayTa
     }
     // 그 외의 경우에는 이 무기는 관련 모디파이어가 없으므로 false 반환
     return false;
+}
+
+// [추가] 
+void AGtTestWeaponBase::OnNotify_RefillAmmo()
+{
+    if (!bIsReloading) return; 
+
+    CurrentAmmo = TestMaxAmmo;
+
+    ConsecutiveShotCount = 0;
+    AccumulatedRecoil = FVector2D::ZeroVector;
+    CurrentSpread = 0.0f;
+}
+
+// [추가] 
+void AGtTestWeaponBase::EndReload()
+{
+    bIsReloading = false;
+
+    if (WeaponMesh)
+    {
+        WeaponMesh->Stop();
+    }
 }
 
 void AGtTestWeaponBase::TestFire()
@@ -341,7 +402,7 @@ void AGtTestWeaponBase::TestFire()
             
             FGtDamageResult DamageResult;
             IGtDamageable::Execute_ApplyDamage(HitResult.GetActor(), DamageInfo, DamageResult);
-            
+
             UE_LOG(LogTemp, Warning, TEXT("[TestWeapon] Hit %s for %.1f damage"), 
                 *HitResult.GetActor()->GetName(), DamageResult.FinalDamage);
         }
