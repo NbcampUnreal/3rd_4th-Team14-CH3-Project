@@ -5,17 +5,27 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Pawn.h"
 #include "Components/SphereComponent.h"
+#include "Gigantes/Gameplay/Damage/GtDamageable.h"
 #include "GtTurretBase.generated.h"
 
 
 UCLASS()
-class GIGANTES_API AGtTurretBase : public APawn
+class GIGANTES_API AGtTurretBase : public APawn, public IGtDamageable
 {
 	GENERATED_BODY()
 
 public:
 	AGtTurretBase();
 
+	// ApplyDamage 인터페이스 함수 오버라이드 
+	virtual bool ApplyDamage_Implementation(const FGtDamageInfo& DamageInfo, FGtDamageResult& OutDamageResult) override;
+
+	UFUNCTION(BlueprintPure, Category = "Turret")
+	float GetCurrentHP() const { return TurretCurrentHP; }
+    
+	UFUNCTION(BlueprintPure, Category = "Turret")
+	float GetMaxHP() const { return TurretMaxHP; }
+	
 protected:
 	virtual void BeginPlay() override;
 	
@@ -57,9 +67,12 @@ protected:
 	float TurretDamage;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Turret")
 	float TurretReloadTime;
-	int TurretMaxHP;
-	int TurretCurrentHP;
+	float TurretMaxHP;
+	float TurretCurrentHP;
 
+	// 죽음 상태 체크
+	bool bIsDead = false;
+	
 	//setter
 	void SetHP(int value);
 
@@ -77,5 +90,6 @@ public:
 	
 	//getter
 	int GetHP();
-	
+
+	void Die();
 };

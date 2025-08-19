@@ -38,11 +38,11 @@ void AGtGameModeBase::BeginPlay()
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AGtTurretBase::StaticClass(), FoundEnemies);
 	TotalEnemyCount += FoundEnemies.Num();
 
-	
+	MaxEnemies = TotalEnemyCount;
 	
 	if (AGtGameStateBase* GS = GetGameState<AGtGameStateBase>())
 	{
-		GS->RemainingEnemies = MaxEnemies;
+		GS->RemainingEnemies = TotalEnemyCount;
 		GS->CurrentScore = 0;
 		GS->ElapsedTime = 0.0f;
 	}

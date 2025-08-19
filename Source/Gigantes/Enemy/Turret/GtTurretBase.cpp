@@ -1,6 +1,8 @@
 
 #include "GtTurretBase.h"
 #include "AnimNodeEditModes.h"
+#include "Gigantes/GameModes/GtGameModeBase.h"
+#include "Kismet/GameplayStatics.h"
 
 AGtTurretBase::AGtTurretBase()
 {
@@ -21,11 +23,39 @@ AGtTurretBase::AGtTurretBase()
 	bIsReadyToAttack = false;
 	FindEnemyActor = nullptr;
 
-	TurretMaxHP = 100;
+	TurretMaxHP = 100.f;
 	TurretCurrentHP = TurretMaxHP;
 
 	TurretDamage = 10;
 	TurretReloadTime = 0.1f;
+}
+
+bool AGtTurretBase::ApplyDamage_Implementation(const FGtDamageInfo& DamageInfo, FGtDamageResult& OutDamageResult)
+{
+	if (bIsDead)
+	{
+		OutDamageResult.FinalDamage = 0.0f;
+		return false;
+	}
+    
+	// 기본 데미지 계산 (방어력 등 추가 가능)
+	float ActualDamage = DamageInfo.BaseDamage;
+    
+	// HP 감소
+	TurretCurrentHP -= ActualDamage;
+	TurretCurrentHP = FMath::Max(0.0f, TurretCurrentHP);
+    
+	// 결과 반환
+	OutDamageResult.FinalDamage = ActualDamage;
+	//OutDamageResult.bWasCritical = false;  // 터렛은 헤드샷 없음
+
+	// 죽음 체크
+	if (TurretCurrentHP <= 0.0f)
+	{
+		Die();
+	}
+    
+	return true;
 }
 
 
@@ -150,4 +180,38 @@ void AGtTurretBase::SetHP(int value)
 int AGtTurretBase::GetHP()
 {
 	return TurretCurrentHP;
+}
+
+void AGtTurretBase::Die()
+{
+	if (bIsDead) return;  // 중복 방지
+	bIsDead = true;
+
+	UE_LOG(LogTemp, Warning, TEXT("Turret Destroyed"));
+
+	// AI 로직 정지
+	GetWorldTimerManager().ClearAllTimersForObject(this);
+	bIsFindEnermy = false;
+	FindEnemyActor = nullptr;
+
+	// GameMode에 죽음 알림
+	if (UWorld* World = GetWorld())
+	{
+		AGtGameModeBase* GameMode = Cast<AGtGameModeBase>(UGameplayStatics::GetGameMode(World));
+		if (GameMode)
+		{
+			GameMode->EnemyKilled(false);
+		}
+	}
+
+	// 파괴 이펙트 실행 (선택사항)
+	// UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), DeathEffect, GetActorLocation());
+	
+	if (Collision)
+	{
+		Collision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+
+	// 2초 후 제거
+	SetLifeSpan(2.0f);
 }
