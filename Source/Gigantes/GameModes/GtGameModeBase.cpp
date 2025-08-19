@@ -2,6 +2,10 @@
 #include "GtGameModeBase.h"
 #include "GtGameStateBase.h"
 #include "Blueprint/UserWidget.h"  // UMG 위젯 사용
+#include "Blueprint/WidgetBlueprintLibrary.h"
+#include "Gigantes/Enemy/EliteEnemy/GtEliteEnemy.h"
+#include "Gigantes/Enemy/HumanEnemy/GtEnemyHumanCharacter.h"
+#include "Gigantes/Enemy/Turret/GtTurretBase.h"
 #include "Kismet/GameplayStatics.h"
 
 AGtGameModeBase::AGtGameModeBase()
@@ -17,57 +21,32 @@ void AGtGameModeBase::BeginPlay()
 
 	check(GEngine != nullptr);
 
-	// 초기화 강화: 변수 리셋
 	CurrentEnemiesKilled = 0;
 	ElapsedTime = 0.0f;
 
+	TArray<AActor*> FoundEnemies;
+	int32 TotalEnemyCount = 0;
+
+	// 1. GtEnemyHumanCharacter 카운트
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AGtEnemyHumanCharacter::StaticClass(), FoundEnemies);
+	TotalEnemyCount += FoundEnemies.Num();
+
+	// 2. GtEliteEnemy 카운트
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AGtEliteEnemy::StaticClass(), FoundEnemies);
+	TotalEnemyCount += FoundEnemies.Num();
+
+	// 3. GtTurretBase 카운트
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AGtTurretBase::StaticClass(), FoundEnemies);
+	TotalEnemyCount += FoundEnemies.Num();
+
+	MaxEnemies = TotalEnemyCount;
+	
 	if (AGtGameStateBase* GS = GetGameState<AGtGameStateBase>())
 	{
-		GS->RemainingEnemies = MaxEnemies;
+		GS->RemainingEnemies = TotalEnemyCount;
 		GS->CurrentScore = 0;
 		GS->ElapsedTime = 0.0f;
-		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("ElapsedTime: "));
 	}
-	
-	if (UClass* MenuClass = LoadClass<UUserWidget>(nullptr, TEXT("/Game/UI/WBP_GtMainMenu.WBP_GtMainMenu_C")))
-	{
-		if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
-		{
-			UUserWidget* MenuWidget = CreateWidget<UUserWidget>(PC, MenuClass);
-			if (MenuWidget)
-			{
-				MenuWidget->AddToViewport();  // 뷰포트에보이게
-				UGameplayStatics::SetGamePaused(GetWorld(), true);  // 일시정지
-				PC->SetShowMouseCursor(true);  // 마우스 커서 보이게
-				PC->SetInputMode(FInputModeUIOnly());  // UI입력모드
-			}
-			else
-			{
-				UE_LOG(LogTemp, Error, TEXT("Failed to create WBP_MainMenu widget!"));
-			}
-		}
-		else
-		{
-			UE_LOG(LogTemp, Error, TEXT("PlayerController not found!"));
-		}
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to load WBP_MainMenu class!"));
-	}
-
-	if (HUDWidgetClass)
-	{
-		if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
-		{
-			UUserWidget* HUD = CreateWidget<UUserWidget>(PC, HUDWidgetClass);
-			if (HUD)
-			{
-				HUD->AddToViewport();  // HUD 뷰포트에 추가 
-			}
-		}
-	}
-	// 초기화: 적 스폰
 }
 
 void AGtGameModeBase::Tick(float DeltaTime)
@@ -105,11 +84,16 @@ void AGtGameModeBase::EnemyKilled(bool bHeadshot)
 	if (AGtGameStateBase* GS = GetGameState<AGtGameStateBase>())
 	{
 		GS->RemainingEnemies--;  //남은적수 감소(UI 표시)
-	}
+		if (GS->RemainingEnemies == 1)
+		{
+			// 이 델리게이트를 구독하는 모든 액터의 함수를 호출
+			OnLastEnemyRemaining.Broadcast();
+		}
 
-	if (CurrentEnemiesKilled >= MaxEnemies)
-	{
-		EndGame(true);  //클리어시 게임종료
+		if (GS->RemainingEnemies <= 0)
+		{
+			EndGame(true);
+		}
 	}
 }
 
@@ -123,8 +107,18 @@ void AGtGameModeBase::EndGame(bool bWon)
 	bGameOver = !bWon;
 	bGameCleared = bWon;
 	UE_LOG(LogTemp, Warning, TEXT("%s"), bWon ? TEXT("Game Cleared!") : TEXT("Game Over!"));
+
+	TArray<UUserWidget*> FoundWidgets;
+	UWidgetBlueprintLibrary::GetAllWidgetsOfClass(GetWorld(), FoundWidgets, UUserWidget::StaticClass());
+	for (UUserWidget* Widget : FoundWidgets)
+	{
+		if (Widget && Widget->IsInViewport())
+		{
+			Widget->RemoveFromParent();
+		}
+	}
+
 	
-	// UI 전환 확장: 결과 화면 위젯 표시 (UMG 예시)
 	if (UClass* ResultClass = LoadClass<UUserWidget>(nullptr, bWon ? TEXT("/Game/UI/WBP_GtClear.WBP_GtClear_C") : TEXT("/Game/UI/WBP_GtGameOver.WBP_GtGameOver_C")))
 	{
 		if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
@@ -133,9 +127,8 @@ void AGtGameModeBase::EndGame(bool bWon)
 			if (ResultWidget)
 			{
 				ResultWidget->AddToViewport();
-				UGameplayStatics::SetGamePaused(GetWorld(), true);
 				PC->SetShowMouseCursor(true);
-				PC->SetInputMode(FInputModeUIOnly());
+				PC->SetInputMode(FInputModeGameAndUI());
 			}
 		}
 	}

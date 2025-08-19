@@ -2,12 +2,15 @@
 
 #include "EnhancedInputSubsystems.h"
 #include "Camera/CameraComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/GtHeroMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Gigantes/GtGameplayTags.h"
 #include "Gigantes/Equipments/Components/GtLoadoutComponent.h"
+#include "Gigantes/GameModes/GtGameModeBase.h"
 #include "Gigantes/Input/GtInputComponent.h"
 #include "Gigantes/Items/Systems/Manager/GtItemManagerComponent.h"
+#include "Kismet/GameplayStatics.h"
 #include "Test/GtTestWeaponBase.h"
 #include "Test/TestGtGameplayTags.h"
 
@@ -93,8 +96,58 @@ void AGtHeroCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 	GtInputComponent->BindNativeInputAction(InputConfigDataAsset, GtGameplayTags::InputTag_UseConsumable, ETriggerEvent::Started, this, &ThisClass::Input_UseConsumableSlot);
 }
 
+void AGtHeroCharacter::Die()
+{
+	Super::Die();
+
+	if (APlayerController* PC = Cast<APlayerController>(GetController()))
+	{
+		DisableInput(PC);
+	}
+    
+	// 무브먼트 정지
+	if (HeroMovementComponent)
+	{
+		HeroMovementComponent->DisableMovement();
+		HeroMovementComponent->StopMovementImmediately();
+	}
+
+	if (GetCapsuleComponent())
+	{
+		GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+
+	USkeletalMeshComponent* MeshComp = GetMesh();
+	if (MeshComp)
+	{
+		// 물리 시뮬레이션이 다른 오브젝트와 정상적으로 상호작용하도록 콜리전 프로파일을 "Ragdoll"로 설정합니다.
+		MeshComp->SetCollisionProfileName(TEXT("Ragdoll"));
+		MeshComp->SetSimulatePhysics(true);
+	}
+	
+	// GameMode에 플레이어 사망 알림
+	if (UWorld* World = GetWorld())
+	{
+		if (AGtGameModeBase* GameMode = Cast<AGtGameModeBase>(UGameplayStatics::GetGameMode(World)))
+		{
+			GameMode->PlayerDied();
+		}
+	}
+
+	APlayerController* PC = GetController<APlayerController>();
+	if (PC)
+	{
+		DisableInput(PC);
+	}
+}
+
 void AGtHeroCharacter::Input_Move(const FInputActionValue& InputActionValue)
 {
+	if (HasStatusTag(GtGameplayTags::Status_Dead))
+	{
+		return;
+	}
+	
 	if (GetController())
 	{
 		const FVector2D Value = InputActionValue.Get<FVector2D>();
@@ -132,6 +185,11 @@ void AGtHeroCharacter::Input_Look(const FInputActionValue& InputActionValue)
 
 void AGtHeroCharacter::Input_Jump(const FInputActionValue& InputActionValue)
 {
+	if (HasStatusTag(GtGameplayTags::Status_Dead))
+	{
+		return;
+	}
+	
 	// 슬라이딩 중 점프 시 슬라이드 캔슬하고 점프
 	if (HasStatusTag(GtGameplayTags::Status_Action_Sliding))
 	{
@@ -177,6 +235,11 @@ void AGtHeroCharacter::Input_Jump(const FInputActionValue& InputActionValue)
 
 void AGtHeroCharacter::Input_Crouch(const FInputActionValue& InputActionValue)
 {
+	if (HasStatusTag(GtGameplayTags::Status_Dead))
+	{
+		return;
+	}
+
 	if (HasStatusTag(GtGameplayTags::Status_Action_Sliding))
 	{
 		HeroMovementComponent->EndSlide(ESlideEndReason::CrouchInput);
@@ -202,20 +265,31 @@ void AGtHeroCharacter::Input_Crouch(const FInputActionValue& InputActionValue)
 
 void AGtHeroCharacter::Input_SprintStart(const FInputActionValue& InputActionValue)
 {
+	if (HasStatusTag(GtGameplayTags::Status_Dead))
+	{
+		return;
+	}
+	
 	Sprint();
 }
 
 void AGtHeroCharacter::Input_SprintStop(const FInputActionValue& InputActionValue)
 {
+	if (HasStatusTag(GtGameplayTags::Status_Dead))
+	{
+		return;
+	}
+	
 	UnSprint();
 }
 
 void AGtHeroCharacter::Input_PrimaryActionPressed(const FInputActionValue& InputActionValue)
 {
+	
 	// TODO : 행동 가능 상태 체크를 어떻게 구현할지 고민
-	if (HasStatusTag(GtGameplayTags::Status_Dead))
+	if (!CanPerformAction())
 	{
-		return; 
+		return;
 	}
 	
 	if (LoadoutComponent)
@@ -240,11 +314,12 @@ void AGtHeroCharacter::Input_PrimaryActionReleased(const FInputActionValue& Inpu
 
 void AGtHeroCharacter::Input_SecondaryActionPressed(const FInputActionValue& InputActionValue)
 {
-	// TODO : 행동 가능 상태 체크를 어떻게 구현할지 고민
-	if (HasStatusTag(GtGameplayTags::Status_Dead))
+	if (!CanPerformAction())
 	{
 		return; 
 	}
+	
+	bAimInputHeld = true;
 	
 	if (LoadoutComponent)
 	{
@@ -254,11 +329,12 @@ void AGtHeroCharacter::Input_SecondaryActionPressed(const FInputActionValue& Inp
 
 void AGtHeroCharacter::Input_SecondaryActionReleased(const FInputActionValue& InputActionValue)
 {
-	// TODO : 행동 가능 상태 체크를 어떻게 구현할지 고민
 	if (HasStatusTag(GtGameplayTags::Status_Dead))
 	{
 		return; 
 	}
+
+	bAimInputHeld = false;
 	
 	if (LoadoutComponent)
 	{
@@ -269,7 +345,7 @@ void AGtHeroCharacter::Input_SecondaryActionReleased(const FInputActionValue& In
 void AGtHeroCharacter::Input_Reload(const FInputActionValue& InputActionValue)
 {
 	// TODO : 행동 가능 상태 체크를 어떻게 구현할지 고민
-	if (HasStatusTag(GtGameplayTags::Status_Dead))
+	if (!CanPerformAction())
 	{
 		return; 
 	}
@@ -282,6 +358,11 @@ void AGtHeroCharacter::Input_Reload(const FInputActionValue& InputActionValue)
 
 void AGtHeroCharacter::Input_EquipSlot1(const FInputActionValue& InputActionValue)
 {
+	if (HasStatusTag(GtGameplayTags::Status_Dead))
+	{
+		return;
+	}
+	
 	if (LoadoutComponent)
 	{
 		LoadoutComponent->ChangeActiveWeaponSlot(GtGameplayTags::Loadout_Slot_Weapon_Primary);
@@ -290,6 +371,11 @@ void AGtHeroCharacter::Input_EquipSlot1(const FInputActionValue& InputActionValu
 
 void AGtHeroCharacter::Input_EquipSlot2(const FInputActionValue& InputActionValue)
 {
+	if (HasStatusTag(GtGameplayTags::Status_Dead))
+	{
+		return;
+	}
+	
 	if (LoadoutComponent)
 	{
 		LoadoutComponent->ChangeActiveWeaponSlot(GtGameplayTags::Loadout_Slot_Weapon_Secondary);
@@ -298,6 +384,11 @@ void AGtHeroCharacter::Input_EquipSlot2(const FInputActionValue& InputActionValu
 
 void AGtHeroCharacter::Input_UseGrenadeSlot(const FInputActionValue& InputActionValue)
 {
+	if (HasStatusTag(GtGameplayTags::Status_Dead))
+	{
+		return;
+	}
+	
 	if (LoadoutComponent)
 	{
 		LoadoutComponent->UseItemInSlot(GtGameplayTags::Loadout_Slot_Grenade);
@@ -306,6 +397,11 @@ void AGtHeroCharacter::Input_UseGrenadeSlot(const FInputActionValue& InputAction
 
 void AGtHeroCharacter::Input_UseConsumableSlot(const FInputActionValue& InputActionValue)
 {
+	if (HasStatusTag(GtGameplayTags::Status_Dead))
+	{
+		return;
+	}
+	
 	if (LoadoutComponent)
 	{
 		LoadoutComponent->UseItemInSlot(GtGameplayTags::Loadout_Slot_Consumable);
@@ -423,6 +519,12 @@ void AGtHeroCharacter::StartSlide()
 	}
 	// MovementComponent에 슬라이드 움직임 시작 요청
 	HeroMovementComponent->StartSlide();
+}
+
+bool AGtHeroCharacter::CanPerformAction() const
+{
+	return !HasStatusTag(GtGameplayTags::Status_Dead) && 
+		   !HasStatusTag(GtGameplayTags::Status_Action_Reloading);
 }
 
 void AGtHeroCharacter::HandleCapsuleSizeChanged(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
@@ -550,7 +652,10 @@ void AGtHeroCharacter::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 	{
 		// 재장전이 정상적으로 끝났든 무기 교체 등으로 중단되었든 상관없이 상태를 정리
 		RemoveStatusTag(GtGameplayTags::Status_Action_Reloading);
+		RemoveIKDisableTag(GtGameplayTags::Animation_IK_Disable_Reloading);
 		CurrentWeapon->EndReload();
+
+		TryUpdateAimingState();
 	}
 }
 
@@ -564,6 +669,30 @@ void AGtHeroCharacter::UpdateAimOffsetState()
 	}
 }
 
+void AGtHeroCharacter::TryUpdateAimingState()
+{
+	if (LoadoutComponent)
+	{
+		// 플레이어가 조준을 원하고 (버튼 누름), 캐릭터가 조준 가능한 상태라면
+		if (bAimInputHeld && CanAim())
+		{
+			// 조준 시작 명령
+			LoadoutComponent->SecondaryActionPressed();
+		}
+		else
+		{
+			// 그 외 모든 경우엔 조준 중지 명령
+			LoadoutComponent->SecondaryActionReleased();
+		}
+	}
+}
+
+bool AGtHeroCharacter::CanAim() const
+{
+	return !HasStatusTag(GtGameplayTags::Status_Action_Reloading) &&
+		   !HasStatusTag(GtGameplayTags::Status_Dead);
+}
+
 void AGtHeroCharacter::AddIKDisableTag(const FGameplayTag& DisableTag)
 {
 	IKDisableTags.AddTag(DisableTag);
@@ -572,4 +701,28 @@ void AGtHeroCharacter::AddIKDisableTag(const FGameplayTag& DisableTag)
 void AGtHeroCharacter::RemoveIKDisableTag(const FGameplayTag& DisableTag)
 {
 	IKDisableTags.RemoveTag(DisableTag);
+}
+
+int32 AGtHeroCharacter::GetCurrentWeaponAmmo() const
+{
+	if (LoadoutComponent)
+	{
+		if (AGtTestWeaponBase* Weapon = Cast<AGtTestWeaponBase>(LoadoutComponent->GetCurrentEquippedWeapon()))
+		{
+			return Weapon->GetCurrentAmmo();
+		}
+	}
+	return 0;
+}
+
+int32 AGtHeroCharacter::GetCurrentWeaponMaxAmmo() const
+{
+	if (LoadoutComponent)
+	{
+		if (AGtTestWeaponBase* Weapon = Cast<AGtTestWeaponBase>(LoadoutComponent->GetCurrentEquippedWeapon()))
+		{
+			return Weapon->GetMaxAmmo();
+		}
+	}
+	return 0;
 }

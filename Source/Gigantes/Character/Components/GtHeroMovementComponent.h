@@ -154,6 +154,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Movement|WallRun")
 	float WallRunCooldownTime = 0.3f;  // 0.5초 쿨다운
 
+	UPROPERTY(EditDefaultsOnly, Category = "Movement|WallRun", meta = (ClampMin = "-1.0", ClampMax = "1.0"))
+	float WallRunEntryAngleThreshold = 0.1f;
+
 	/**
 	 * Slide 관련 속성들
 	 */

@@ -63,6 +63,9 @@ public:
 	void SecondaryActionReleased();
 	void ReloadAction();
 
+	void StartSecondaryAction();
+	void StopSecondaryAction();
+
 	UFUNCTION(BlueprintPure, Category = "Loadout")
 	AGtTestWeaponBase* GetCurrentEquippedWeapon() const { return CurrentEquippedWeapon; }
 	

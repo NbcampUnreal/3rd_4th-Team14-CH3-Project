@@ -74,6 +74,7 @@ enum class EGtFireMode : uint8
 };
 
 class USphereComponent;
+
 /**
  * 테스트 전용 무기 베이스 클래스
  * TODO: 정식 무기 시스템 완성 후 제거
@@ -116,11 +117,19 @@ public:
 	const FGtCameraModifier& GetAimCameraModifier() const { return AimCameraModifier; }
 
 	// [추가] 애님 노티파이 또는 다른 시스템에서 호출할 공개 함수들
-	//void OnNotify_RefillAmmo();
+	UFUNCTION(BlueprintCallable)
+	void OnNotify_RefillAmmo();
 	void EndReload();
 
 	// [추가] 캐릭터가 현재 무기의 재장전 몽타주를 알 수 있도록 Getter 추가
 	UAnimMontage* GetCharacterReloadMontage() const { return CharacterReloadMontage; }
+	
+	// 현재 탄환 정보 가져오기
+	UFUNCTION(BlueprintPure, Category = "Weapon|Ammo")
+	int32 GetCurrentAmmo() const { return CurrentAmmo; }
+    
+	UFUNCTION(BlueprintPure, Category = "Weapon|Ammo")
+	int32 GetMaxAmmo() const { return TestMaxAmmo; }
 
 protected:
 	// 테스트용 간단한 발사 로직
@@ -233,6 +242,10 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Effects")
 	TObjectPtr<UParticleSystem> TrailEffect;
+
+	// 임팩트 사운드 추가
+	UPROPERTY(EditDefaultsOnly, Category = "Effects")
+	TObjectPtr<class USoundBase> ImpactSound;
     
 	UPROPERTY(EditDefaultsOnly, Category = "Effects")
 	FName TrailTargetParameterName = TEXT("ShockBeamEnd");

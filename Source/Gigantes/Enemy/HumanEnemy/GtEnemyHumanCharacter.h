@@ -17,4 +17,10 @@ public:
 protected:
 	virtual void BeginPlay() override;
 	virtual void Die() override;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Effects")
+	TObjectPtr<UParticleSystem> DeathExplosionEffect;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Effects")
+	TObjectPtr<USoundBase> DeathExplosionSound;
 };

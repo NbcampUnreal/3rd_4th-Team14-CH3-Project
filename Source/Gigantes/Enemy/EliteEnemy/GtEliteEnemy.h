@@ -7,6 +7,7 @@
 #include "Containers/Array.h"
 #include "Components/SphereComponent.h"
 #include "Components/BoxComponent.h"
+#include "Gigantes/Gameplay/Damage/GtDamageable.h"
 #include "GtEliteEnemy.generated.h"
 
 UENUM(BlueprintType)
@@ -21,7 +22,7 @@ enum class EBossState : uint8
 };
 
 UCLASS()
-class GIGANTES_API AGtEliteEnemy : public APawn
+class GIGANTES_API AGtEliteEnemy : public APawn, public IGtDamageable
 {
 	GENERATED_BODY()
 
@@ -29,15 +30,22 @@ public:
 	// Sets default values for this pawn's properties
 	AGtEliteEnemy();
 
+	virtual bool ApplyDamage_Implementation(const FGtDamageInfo& DamageInfo, FGtDamageResult& OutDamageResult) override;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Boss")
 	EBossState BossState;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Boss")
 	AActor* FindEnemyActor;
 
 	void ReAttack();
+	void Die();
 
-	float BossHP;
-	float BossDamage;
+	UFUNCTION(BlueprintPure, Category = "Boss")
+	float GetBossHP() const { return BossHP; }
+    
+	UFUNCTION(BlueprintPure, Category = "Boss")
+	float GetMaxBossHP() const { return MaxBossHP; }
+	
 	void GetDamage(float Damage);
 	UFUNCTION()
 	void Attack(UPrimitiveComponent* OverlappedComponent, 
@@ -65,12 +73,21 @@ protected:
 	void Attackt02();
 	void Attackt03();
 	
-
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Enemy")
 	USkeletalMeshComponent* SkeletalMesh;
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Enemy|TracePlayer")
 	USphereComponent* SphereCollision;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Boss")
+	float MaxBossHP = 300.0f;  // 보스는 HP가 많음
+    
+	UPROPERTY(BlueprintReadOnly, Category = "Boss")
+	float BossHP;
+    
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Boss")
+	float BossDamage = 20.0f;  // 보스 공격력
+
+	bool bIsDead = false;
 public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Enemy|collision")
 	UBoxComponent* HitBox_R;
@@ -84,5 +101,14 @@ protected:
 	FTimerHandle AttacktTmer03;
 
 	TArray<int32> Patern;
-	
+
+
+	UPROPERTY(EditDefaultsOnly, Category = "Effects")
+	TObjectPtr<UParticleSystem> DeathExplosionEffect;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Effects")
+	TObjectPtr<USoundBase> DeathExplosionSound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects")
+	FVector ExplosionScale = FVector(1.0f);
 };

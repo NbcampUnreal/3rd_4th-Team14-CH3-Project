@@ -25,8 +25,8 @@ void FGtHeroAnimInstanceProxy::PreUpdate(UAnimInstance* InAnimInstance, float De
 	UpdateAimOffsetData(OwningHeroCharacter);
 	UpdateMovementData(OwningHeroCharacter);
 	UpdateWeaponData(OwningHeroCharacter);
-    
-	// 캐릭터 메시 캐싱
+	
+	CachedIKDisableTags = OwningHeroCharacter->GetIKDisableTags();
 	CachedCharacterMesh = OwningHeroCharacter->GetMesh();
 }
 
@@ -107,8 +107,8 @@ void UGtHeroAnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds)
 	UpdateMovementStates(HeroAnimProxy);
 	UpdateAimOffsets(HeroAnimProxy);
 	UpdateWeaponStates(HeroAnimProxy);
-	UpdateHandIK(HeroAnimProxy);
 	UpdateIKState(HeroAnimProxy);
+	UpdateHandIK(HeroAnimProxy);
 }
 
 void UGtHeroAnimInstance::UpdateMovementStates(const FGtHeroAnimInstanceProxy& Proxy)
@@ -135,8 +135,8 @@ void UGtHeroAnimInstance::UpdateWeaponStates(const FGtHeroAnimInstanceProxy& Pro
 
 void UGtHeroAnimInstance::UpdateHandIK(const FGtHeroAnimInstanceProxy& Proxy)
 {
-	
-	if (Proxy.bCachedIsEquipped && Proxy.CachedCharacterMesh.IsValid() && Proxy.CachedWeaponItemMesh.IsValid())
+	if  (bIsLeftHandIKEnabled && Proxy.bCachedIsEquipped && 
+		Proxy.CachedCharacterMesh.IsValid() && Proxy.CachedWeaponItemMesh.IsValid())
 	{
 		// TODO : JointTargetLocation을 무기에서 관리할 것 같음
 		JointTargetLocation = Proxy.CachedJointTargetLocation;
@@ -168,7 +168,9 @@ void UGtHeroAnimInstance::UpdateHandIK(const FGtHeroAnimInstanceProxy& Proxy)
 void UGtHeroAnimInstance::UpdateIKState(const FGtHeroAnimInstanceProxy& Proxy)
 {
 	// 기본 규칙: 원거리 전투 상태인지
-	const bool bShouldBeEnabledByDefault = Proxy.CachedStatusTags.HasTag(GtGameplayTags::Status_Combat_Ranged);
+	const bool bShouldBeEnabledByDefault = 
+		Proxy.CachedStatusTags.HasTag(GtGameplayTags::Status_Combat_Ranged) ||
+		Proxy.CachedStatusTags.HasTag(GtGameplayTags::Status_Action_Aiming); 
 
 	// 비활성화 규칙: IK를 비활성화하라는 요청 존재 확인
 	const bool bIsOverriddenToDisable = !Proxy.CachedIKDisableTags.IsEmpty();

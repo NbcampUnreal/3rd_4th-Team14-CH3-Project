@@ -3,7 +3,10 @@
 #include "GtEnemyHumanCharacter.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GtEnemyAiController.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/SphereComponent.h"
+#include "Kismet/GameplayStatics.h"  // UGameplayStatics 사용 위해
+#include "Gigantes/GameModes/GtGameModeBase.h"
 
 
 AGtEnemyHumanCharacter::AGtEnemyHumanCharacter()
@@ -29,6 +32,18 @@ void AGtEnemyHumanCharacter::BeginPlay()
 void AGtEnemyHumanCharacter::Die()
 {
 	Super::Die();
+
+	if (DeathExplosionEffect)
+	{
+		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), DeathExplosionEffect, GetActorLocation(), GetActorRotation());
+	}
+
+	if (DeathExplosionSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, DeathExplosionSound, GetActorLocation());
+	}
+	
+	GetCapsuleComponent()->SetCapsuleSize(0.f, 0.f);
 	
 	USkeletalMeshComponent* MeshComp = GetMesh();
 	if (MeshComp)
@@ -42,6 +57,20 @@ void AGtEnemyHumanCharacter::Die()
 		{
 			MyAIController->Die();
 		}	
+	}
+
+	// GameMode 가져와서 EnemyKilled 호출 (헤드샷 아니면 false)
+	if (UWorld* World = GetWorld())
+	{
+		AGtGameModeBase* GameMode = Cast<AGtGameModeBase>(UGameplayStatics::GetGameMode(World));
+		if (GameMode)
+		{
+			GameMode->EnemyKilled(false);  // bHeadshot = false (필요 시 데미지 이벤트에서 true 전달)
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("GameMode not found in Die()!"));
+		}
 	}
 }
 
