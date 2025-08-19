@@ -116,7 +116,8 @@ public:
 	const FGtCameraModifier& GetAimCameraModifier() const { return AimCameraModifier; }
 
 	// [추가] 애님 노티파이 또는 다른 시스템에서 호출할 공개 함수들
-	//void OnNotify_RefillAmmo();
+	UFUNCTION(BlueprintCallable)
+	void OnNotify_RefillAmmo();
 	void EndReload();
 
 	// [추가] 캐릭터가 현재 무기의 재장전 몽타주를 알 수 있도록 Getter 추가
