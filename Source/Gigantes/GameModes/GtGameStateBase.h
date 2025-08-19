@@ -15,7 +15,7 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Game")
 	int32 RemainingEnemies = 10;  //남은적 갯수
-
+	
 	UPROPERTY(BlueprintReadOnly, Category = "Game")
 	float ElapsedTime = 0.0f;  // 경과 시간 (UI 노출용 추가)
 	

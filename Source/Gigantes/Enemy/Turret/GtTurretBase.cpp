@@ -1,6 +1,8 @@
 
 #include "GtTurretBase.h"
 #include "AnimNodeEditModes.h"
+#include "Gigantes/GameModes/GtGameModeBase.h"
+#include "Kismet/GameplayStatics.h"
 
 AGtTurretBase::AGtTurretBase()
 {
@@ -21,11 +23,39 @@ AGtTurretBase::AGtTurretBase()
 	bIsReadyToAttack = false;
 	FindEnemyActor = nullptr;
 
-	TurretMaxHP = 100;
+	TurretMaxHP = 100.f;
 	TurretCurrentHP = TurretMaxHP;
 
 	TurretDamage = 10;
 	TurretReloadTime = 0.1f;
+}
+
+bool AGtTurretBase::ApplyDamage_Implementation(const FGtDamageInfo& DamageInfo, FGtDamageResult& OutDamageResult)
+{
+	if (bIsDead)
+	{
+		OutDamageResult.FinalDamage = 0.0f;
+		return false;
+	}
+    
+	// 기본 데미지 계산 (방어력 등 추가 가능)
+	float ActualDamage = DamageInfo.BaseDamage;
+    
+	// HP 감소
+	TurretCurrentHP -= ActualDamage;
+	TurretCurrentHP = FMath::Max(0.0f, TurretCurrentHP);
+    
+	// 결과 반환
+	OutDamageResult.FinalDamage = ActualDamage;
+	//OutDamageResult.bWasCritical = false;  // 터렛은 헤드샷 없음
+
+	// 죽음 체크
+	if (TurretCurrentHP <= 0.0f)
+	{
+		Die();
+	}
+    
+	return true;
 }
 
 
@@ -71,26 +101,29 @@ void AGtTurretBase::ReloadTimerReset()
 void AGtTurretBase::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
 								   UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	/*
+	
 	if (OtherActor->ActorHasTag("Player"))
-	{*/
+	{
 	UE_LOG(LogTemp, Warning, TEXT("Turrent is Find Enermy"));
 	bIsFindEnermy = true;
 	FindEnemyActor = OtherActor;
 	EnermySearchTimerReset();
 	AttackTimerReset();	
-	//}
+	}
 }
 
 void AGtTurretBase::OnOverlapEnd(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
 	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
+	if (OtherActor->ActorHasTag("Player"))
+	{
 	UE_LOG(LogTemp, Warning, TEXT("Turrent lose Enermy"));
 	bIsFindEnermy = false;
 	FindEnemyActor = nullptr;
 	GetWorldTimerManager().ClearTimer(FindEnermyHandle);
 	GetWorldTimerManager().ClearTimer(AttackReadyHandle);
 	GetWorldTimerManager().ClearTimer(ReloadHandle);
+	}
 }
 
 void AGtTurretBase::LookAt()
@@ -147,4 +180,48 @@ void AGtTurretBase::SetHP(int value)
 int AGtTurretBase::GetHP()
 {
 	return TurretCurrentHP;
+}
+
+void AGtTurretBase::Die()
+{
+	if (bIsDead) return;  // 중복 방지
+	bIsDead = true;
+
+	UE_LOG(LogTemp, Warning, TEXT("Turret Destroyed"));
+
+	// AI 로직 정지
+	GetWorldTimerManager().ClearAllTimersForObject(this);
+	bIsFindEnermy = false;
+	FindEnemyActor = nullptr;
+
+	// GameMode에 죽음 알림
+	if (UWorld* World = GetWorld())
+	{
+		AGtGameModeBase* GameMode = Cast<AGtGameModeBase>(UGameplayStatics::GetGameMode(World));
+		if (GameMode)
+		{
+			GameMode->EnemyKilled(false);
+		}
+	}
+
+	if (ExplosionEffect)
+	{
+		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), ExplosionEffect, GetActorLocation(), GetActorRotation());
+	}
+
+	if (ExplosionSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, ExplosionSound, GetActorLocation());
+	}
+
+	// 파괴 이펙트 실행 (선택사항)
+	// UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), DeathEffect, GetActorLocation());
+	
+	if (Collision)
+	{
+		Collision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+
+	// 3초 후 제거
+	SetLifeSpan(3.0f);
 }

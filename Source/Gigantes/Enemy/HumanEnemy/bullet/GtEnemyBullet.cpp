@@ -31,7 +31,9 @@ void AGtEnemyBullet::BeginPlay()
 	Super::BeginPlay();
 
 	// 충돌 시 이벤트 바인딩
+	CollisionComp->IgnoreActorWhenMoving(GetOwner(), true);
 	CollisionComp->OnComponentHit.AddDynamic(this, &AGtEnemyBullet::OnHit);
+
 }
 
 void AGtEnemyBullet::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor,
@@ -49,7 +51,7 @@ void AGtEnemyBullet::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor,
 			DamageInfo.HitResultInfo = Hit;
     
 			FGtDamageResult DamageResult;
-			IGtDamageable::Execute_ApplyDamage(Hit.GetActor(), DamageInfo, DamageResult);
+			IGtDamageable::Execute_ApplyDamage(OtherActor, DamageInfo, DamageResult);
 
 			UE_LOG(LogTemp, Warning, TEXT("[TestWeapon] Hit %s for %.1f damage"), 
 				*Hit.GetActor()->GetName(), DamageResult.FinalDamage);

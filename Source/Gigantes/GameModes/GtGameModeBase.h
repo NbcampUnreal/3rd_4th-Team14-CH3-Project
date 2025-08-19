@@ -4,6 +4,8 @@
 #include "GameFramework/GameModeBase.h"
 #include "GtGameModeBase.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLastEnemyRemaining);
+
 UCLASS()
 class GIGANTES_API AGtGameModeBase : public AGameModeBase
 {
@@ -24,6 +26,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Game")
 	void PlayerDied();  //플레이어 사망시
 
+	UPROPERTY(BlueprintAssignable, Category = "Game Events")
+	FOnLastEnemyRemaining OnLastEnemyRemaining; 
+	
 protected:
 	
 	// Delegate 선언 (헤더에 추가)
@@ -37,7 +42,7 @@ protected:
 	int32 MaxEnemies = 10;  //클리어에 필요한 적의 갯수
 
 	UPROPERTY(EditDefaultsOnly, Category = "Game")
-	float GameTimeLimit = 60.0f;  //시간초과로 게임오버되는 제한시간
+	float GameTimeLimit = 300.0f;  //시간초과로 게임오버되는 제한시간
 
 	// UPROPERTY(EditDefaultsOnly, Category = "UI")
 	// TSubclassOf<class UUserWidget> HUDWidgetClass;

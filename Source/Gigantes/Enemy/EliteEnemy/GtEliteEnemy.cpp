@@ -2,6 +2,11 @@
 
 #include "GtEliteEnemy.h"
 #include "Components/SphereComponent.h"
+#include "Gigantes/GameModes/GtGameModeBase.h"
+#include "Gigantes/Gameplay/Damage/GtDamageable.h"
+#include "Kismet/GameplayStatics.h"
+
+class AGtGameModeBase;
 
 AGtEliteEnemy::AGtEliteEnemy()
 {
@@ -30,8 +35,38 @@ AGtEliteEnemy::AGtEliteEnemy()
 	Patern = {1,2,3};
 	FindEnemyActor = nullptr;
 
-	BossHP = 100;
-	BossDamage = 10;
+	BossHP = MaxBossHP;
+	BossDamage = 20.0f;
+}
+
+bool AGtEliteEnemy::ApplyDamage_Implementation(const FGtDamageInfo& DamageInfo, FGtDamageResult& OutDamageResult)
+{
+	if (bIsDead || BossState == EBossState::Die)
+	{
+		OutDamageResult.FinalDamage = 0.0f;
+		return false;
+	}
+
+	float ActualDamage = DamageInfo.BaseDamage;
+    
+	// HP 감소
+	BossHP -= ActualDamage;
+	BossHP = FMath::Max(0.0f, BossHP);
+    
+	// 결과 반환
+	OutDamageResult.FinalDamage = ActualDamage;
+	OutDamageResult.bWasCritical = false;  
+    
+	UE_LOG(LogTemp, Warning, TEXT("[Boss] Took %.1f damage. HP: %.1f/%.1f"), 
+		ActualDamage, BossHP, MaxBossHP);
+    
+	// 죽음 체크
+	if (BossHP <= 0.0f)
+	{
+		Die();
+	}
+    
+	return true;
 }
 
 void AGtEliteEnemy::GetDamage(float Damage)
@@ -42,9 +77,29 @@ void AGtEliteEnemy::GetDamage(float Damage)
 void AGtEliteEnemy::Attack(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
 	int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	//give damage
-}
+	UE_LOG(LogTemp, Warning, TEXT("[Boss]Attack to player"));
+	
+	if (OtherActor && OtherActor != this && OtherComp)
+	{
+		if (OtherActor->ActorHasTag("Player"))
+		{
+			if (OtherActor->Implements<UGtDamageable>())
+			{
+				FGtDamageInfo DamageInfo;
+				DamageInfo.BaseDamage = BossDamage;
+				DamageInfo.DamageCauser = this;
+				DamageInfo.Instigator = nullptr;
+				DamageInfo.HitResultInfo = SweepResult;
+	    
+				FGtDamageResult DamageResult;
+				IGtDamageable::Execute_ApplyDamage(OtherActor, DamageInfo, DamageResult);
 
+				UE_LOG(LogTemp, Warning, TEXT("[TestWeapon] Hit %s for %.1f damage"), 
+					*SweepResult.GetActor()->GetName(), DamageResult.FinalDamage);
+			}
+		}
+	}
+}
 void AGtEliteEnemy::BeginPlay()
 {
 	Super::BeginPlay();
@@ -91,10 +146,18 @@ void AGtEliteEnemy::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* 
 {
 	if (OtherActor->ActorHasTag("Player"))
 	{
-	UE_LOG(LogTemp, Warning, TEXT("[BOSS] Find Player"));
-	PlayerTraceTimerOn();
-	FindEnemyActor = OtherActor;
-	ChoiceAttack();
+		UE_LOG(LogTemp, Warning, TEXT("[BOSS] Find Player"));
+
+		FindEnemyActor = OtherActor;
+
+		// 먼저 회전 시작
+		if (!GetWorldTimerManager().IsTimerActive(PlayerTraceTimer))
+		{
+			PlayerTraceTimerOn();
+		}
+
+		// 그 다음 공격 패턴 선택
+		ChoiceAttack();
 	}
 }
 
@@ -158,7 +221,7 @@ void AGtEliteEnemy::AttacktTmer03_On()
 
 void AGtEliteEnemy::PlayerTrace()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[Boss]Chase Player"));
+	// UE_LOG(LogTemp, Warning, TEXT("[Boss]Chase Player"));
 		FVector Direction = FindEnemyActor->GetActorLocation() - GetActorLocation();
 		Direction.Z = 0;
 		Direction.Normalize();
@@ -194,4 +257,80 @@ void AGtEliteEnemy::ReAttack()
 {
 	ChoiceAttack();
 	PlayerTraceTimerOn();
+}
+
+void AGtEliteEnemy::Die()
+{
+	if (bIsDead) return;  // 중복 방지
+	bIsDead = true;
+    
+	BossState = EBossState::Die;
+    
+	UE_LOG(LogTemp, Warning, TEXT("[Boss] Defeated!"));
+    
+	// 모든 타이머 정리
+	GetWorldTimerManager().ClearAllTimersForObject(this);
+    
+	// GameMode에 알림 (보스는 추가 점수)
+	if (UWorld* World = GetWorld())
+	{
+		if (AGtGameModeBase* GameMode = Cast<AGtGameModeBase>(UGameplayStatics::GetGameMode(World)))
+		{
+			// 보스는 일반 적보다 높은 점수
+			GameMode->AddScore(500, false);  // 보스 처치 보너스 점수
+			GameMode->EnemyKilled(false);     // 적 카운트 감소
+		}
+	}
+
+	if (DeathExplosionEffect)
+	{
+		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), DeathExplosionEffect, GetActorLocation() + FVector(0,0,100), GetActorRotation(), ExplosionScale);
+	}
+
+	if (DeathExplosionSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, DeathExplosionSound, GetActorLocation());
+	}
+	
+	// 공격 히트박스 비활성화
+	if (HitBox_R)
+	{
+		HitBox_R->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+	if (HitBox_L)
+	{
+		HitBox_L->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+    
+	// 감지 영역 비활성화
+	if (SphereCollision)
+	{
+		SphereCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+
+
+	// 보스 죽음 이펙트 (선택사항)
+	// if (BossDeathEffect)
+	// {
+	//     UGameplayStatics::SpawnEmitterAtLocation(
+	//         GetWorld(), 
+	//         BossDeathEffect, 
+	//         GetActorLocation(),
+	//         FRotator::ZeroRotator,
+	//         FVector(2.0f)  // 큰 이펙트
+	//     );
+	// }
+    
+	// 죽음 사운드 (선택사항)
+	// if (BossDeathSound)
+	// {
+	//     UGameplayStatics::PlaySoundAtLocation(
+	//         GetWorld(),
+	//         BossDeathSound,
+	//         GetActorLocation()
+	//     );
+	// }
+    
+	// 5초 후 제거 (보스는 천천히 사라짐)
+	SetLifeSpan(5.0f);
 }
