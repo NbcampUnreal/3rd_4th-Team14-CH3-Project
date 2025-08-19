@@ -29,8 +29,6 @@ void AGtEnemyHumanCharacter::BeginPlay()
 	
 }
 
-
-
 void AGtEnemyHumanCharacter::Die()
 {
 	Super::Die();

@@ -2,6 +2,7 @@
 
 #include "GtEliteEnemy.h"
 #include "Components/SphereComponent.h"
+#include "Gigantes/Gameplay/Damage/GtDamageable.h"
 
 AGtEliteEnemy::AGtEliteEnemy()
 {
@@ -31,7 +32,7 @@ AGtEliteEnemy::AGtEliteEnemy()
 	FindEnemyActor = nullptr;
 
 	BossHP = 100;
-	BossDamage = 10;
+	BossDamage = 20;
 }
 
 void AGtEliteEnemy::GetDamage(float Damage)
@@ -42,9 +43,29 @@ void AGtEliteEnemy::GetDamage(float Damage)
 void AGtEliteEnemy::Attack(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
 	int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	//give damage
-}
+	UE_LOG(LogTemp, Warning, TEXT("[Boss]Attack to player"));
+	
+	if (OtherActor && OtherActor != this && OtherComp)
+	{
+		if (OtherActor->ActorHasTag("Player"))
+		{
+			if (OtherActor->Implements<UGtDamageable>())
+			{
+				FGtDamageInfo DamageInfo;
+				DamageInfo.BaseDamage = BossDamage;
+				DamageInfo.DamageCauser = this;
+				DamageInfo.Instigator = nullptr;
+				DamageInfo.HitResultInfo = SweepResult;
+	    
+				FGtDamageResult DamageResult;
+				IGtDamageable::Execute_ApplyDamage(OtherActor, DamageInfo, DamageResult);
 
+				UE_LOG(LogTemp, Warning, TEXT("[TestWeapon] Hit %s for %.1f damage"), 
+					*SweepResult.GetActor()->GetName(), DamageResult.FinalDamage);
+			}
+		}
+	}
+}
 void AGtEliteEnemy::BeginPlay()
 {
 	Super::BeginPlay();
@@ -91,10 +112,18 @@ void AGtEliteEnemy::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* 
 {
 	if (OtherActor->ActorHasTag("Player"))
 	{
-	UE_LOG(LogTemp, Warning, TEXT("[BOSS] Find Player"));
-	PlayerTraceTimerOn();
-	FindEnemyActor = OtherActor;
-	ChoiceAttack();
+		UE_LOG(LogTemp, Warning, TEXT("[BOSS] Find Player"));
+
+		FindEnemyActor = OtherActor;
+
+		// 먼저 회전 시작
+		if (!GetWorldTimerManager().IsTimerActive(PlayerTraceTimer))
+		{
+			PlayerTraceTimerOn();
+		}
+
+		// 그 다음 공격 패턴 선택
+		ChoiceAttack();
 	}
 }
 
@@ -158,7 +187,7 @@ void AGtEliteEnemy::AttacktTmer03_On()
 
 void AGtEliteEnemy::PlayerTrace()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[Boss]Chase Player"));
+	// UE_LOG(LogTemp, Warning, TEXT("[Boss]Chase Player"));
 		FVector Direction = FindEnemyActor->GetActorLocation() - GetActorLocation();
 		Direction.Z = 0;
 		Direction.Normalize();
