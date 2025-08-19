@@ -21,7 +21,10 @@ public class Gigantes : ModuleRules
 			"UMG",
       		"AnimGraphRuntime",
 			"Json",
-			"JsonUtilities"
+			"JsonUtilities",
+			"Niagara",
+			"AssetRegistry",
+			"DeveloperSettings"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { "AnimGraph" });

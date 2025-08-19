@@ -1,0 +1,14 @@
+[
+  {
+    "ItemId": "Normal_Nor_01",
+    "ItemName": "M67",
+    "ItemType": "Grenade",
+    "SubType": "Normal",
+    "Description": "Just a normal grenade, nothing special.",
+    "Damage": 80,
+    "ExplosionRadius": 4.0,
+    "ExplosionDelay": 0.5,
+    "ItemTag": "Item.Grenade.Normal",
+    "ClassPath": "/Game/Items/Blueprints/BP_GtNormal.BP_GtNormal_C"
+  }
+]
