@@ -391,6 +391,15 @@ void AGtTestWeaponBase::TestFire()
                 ImpactRotation
             );
         }
+
+        if (ImpactSound)
+        {
+            UGameplayStatics::PlaySoundAtLocation(
+                GetWorld(),
+                ImpactSound,
+                HitResult.ImpactPoint  // 히트 위치에서 재생
+            );
+        }
         
         if (HitResult.GetActor()->Implements<UGtDamageable>())
         {
@@ -621,7 +630,7 @@ bool AGtTestWeaponBase::GetTargetHitResult(FHitResult& OutHitResult) const
         CameraTraceHit, 
         ProjectedStartLoc,  // 카메라 위치가 아닌 투영된 위치에서 시작
         TraceEnd, 
-        Gt_TraceChannel_Weapon_Capsule, 
+        Gt_TraceChannel_Weapon, 
         QueryParams);
 
     // 5. 목표 지점 결정
@@ -640,9 +649,16 @@ bool AGtTestWeaponBase::GetTargetHitResult(FHitResult& OutHitResult) const
         OutHitResult, 
         MuzzleLocation, 
         MuzzleTraceEnd, 
-        Gt_TraceChannel_Weapon_Capsule, 
+        Gt_TraceChannel_Weapon, 
         QueryParams);
 
+    if (!bHit)
+    {
+        OutHitResult.TraceStart = MuzzleLocation;
+        OutHitResult.TraceEnd = MuzzleTraceEnd;
+        OutHitResult.Location = MuzzleTraceEnd;  
+    }
+    
     // 디버그 표시 (선택사항)
     if (bShowDebugLine)
     {

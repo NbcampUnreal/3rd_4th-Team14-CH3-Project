@@ -2,6 +2,7 @@
 #include "GtGameModeBase.h"
 #include "GtGameStateBase.h"
 #include "Blueprint/UserWidget.h"  // UMG 위젯 사용
+#include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Gigantes/Enemy/EliteEnemy/GtEliteEnemy.h"
 #include "Gigantes/Enemy/HumanEnemy/GtEnemyHumanCharacter.h"
 #include "Gigantes/Enemy/Turret/GtTurretBase.h"
@@ -83,11 +84,16 @@ void AGtGameModeBase::EnemyKilled(bool bHeadshot)
 	if (AGtGameStateBase* GS = GetGameState<AGtGameStateBase>())
 	{
 		GS->RemainingEnemies--;  //남은적수 감소(UI 표시)
-	}
+		if (GS->RemainingEnemies == 1)
+		{
+			// 이 델리게이트를 구독하는 모든 액터의 함수를 호출
+			OnLastEnemyRemaining.Broadcast();
+		}
 
-	if (CurrentEnemiesKilled >= MaxEnemies)
-	{
-		EndGame(true);  //클리어시 게임종료
+		if (GS->RemainingEnemies <= 0)
+		{
+			EndGame(true);
+		}
 	}
 }
 
@@ -102,6 +108,17 @@ void AGtGameModeBase::EndGame(bool bWon)
 	bGameCleared = bWon;
 	UE_LOG(LogTemp, Warning, TEXT("%s"), bWon ? TEXT("Game Cleared!") : TEXT("Game Over!"));
 
+	TArray<UUserWidget*> FoundWidgets;
+	UWidgetBlueprintLibrary::GetAllWidgetsOfClass(GetWorld(), FoundWidgets, UUserWidget::StaticClass());
+	for (UUserWidget* Widget : FoundWidgets)
+	{
+		if (Widget && Widget->IsInViewport())
+		{
+			Widget->RemoveFromParent();
+		}
+	}
+
+	
 	if (UClass* ResultClass = LoadClass<UUserWidget>(nullptr, bWon ? TEXT("/Game/UI/WBP_GtClear.WBP_GtClear_C") : TEXT("/Game/UI/WBP_GtGameOver.WBP_GtGameOver_C")))
 	{
 		if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
@@ -110,9 +127,8 @@ void AGtGameModeBase::EndGame(bool bWon)
 			if (ResultWidget)
 			{
 				ResultWidget->AddToViewport();
-				UGameplayStatics::SetGamePaused(GetWorld(), true);
 				PC->SetShowMouseCursor(true);
-				PC->SetInputMode(FInputModeUIOnly());
+				PC->SetInputMode(FInputModeGameAndUI());
 			}
 		}
 	}

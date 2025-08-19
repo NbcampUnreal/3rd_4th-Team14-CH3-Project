@@ -57,9 +57,19 @@ public:
 	// 현재 IK 비활성화 태그들을 반환
 	const FGameplayTagContainer& GetIKDisableTags() const { return IKDisableTags; }
 
+
+	// UI용 탄약 정보 헬퍼 함수
+	UFUNCTION(BlueprintPure, Category = "Weapon|Ammo")
+	int32 GetCurrentWeaponAmmo() const;
+    
+	UFUNCTION(BlueprintPure, Category = "Weapon|Ammo")
+	int32 GetCurrentWeaponMaxAmmo() const;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+
+	virtual void Die() override;
 	
 	void Input_Move(const FInputActionValue& InputActionValue);
 	void Input_Look(const FInputActionValue& InputActionValue);

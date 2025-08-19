@@ -33,6 +33,16 @@ void AGtEnemyHumanCharacter::Die()
 {
 	Super::Die();
 
+	if (DeathExplosionEffect)
+	{
+		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), DeathExplosionEffect, GetActorLocation(), GetActorRotation());
+	}
+
+	if (DeathExplosionSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, DeathExplosionSound, GetActorLocation());
+	}
+	
 	GetCapsuleComponent()->SetCapsuleSize(0.f, 0.f);
 	
 	USkeletalMeshComponent* MeshComp = GetMesh();

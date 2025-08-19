@@ -34,12 +34,18 @@ protected:
 	class USkeletalMeshComponent* TurretMesh;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Turret")
 	USphereComponent* Collision;
-
+	
 	//boolean
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Turret")
 	bool bIsFindEnermy;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Turret")
 	bool bIsReadyToAttack;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Effects")
+	TObjectPtr<UParticleSystem> ExplosionEffect;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Effects")
+	TObjectPtr<USoundBase> ExplosionSound;
 	
 	//timer
 	FTimerHandle FindEnermyHandle;

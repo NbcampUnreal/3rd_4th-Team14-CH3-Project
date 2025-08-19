@@ -204,6 +204,16 @@ void AGtTurretBase::Die()
 		}
 	}
 
+	if (ExplosionEffect)
+	{
+		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), ExplosionEffect, GetActorLocation(), GetActorRotation());
+	}
+
+	if (ExplosionSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, ExplosionSound, GetActorLocation());
+	}
+
 	// 파괴 이펙트 실행 (선택사항)
 	// UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), DeathEffect, GetActorLocation());
 	
@@ -212,6 +222,6 @@ void AGtTurretBase::Die()
 		Collision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
 
-	// 2초 후 제거
-	SetLifeSpan(2.0f);
+	// 3초 후 제거
+	SetLifeSpan(3.0f);
 }
